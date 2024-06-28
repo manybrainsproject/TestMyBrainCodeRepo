@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Continuous Performance Test">
+    <meta name="copyright" content="2024 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=contain">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB gradCPT">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- Copyright 2024 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+       GradCPT.html?help
+
+     For reference see:
+
+      Fortenbaugh FC et al. Sustained Attention Across the Life Span in a Sample
+        of 10,000: Dissociating Ability and Strategy.
+        Psychol Sci. 2015; 26: 1497–1510
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>TMB Continuous Performance</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <link rel="stylesheet" href="GradCPT_Main.v1.Apr24.css">
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.Oct23.js"></script>
+    <script type="text/javascript" src="chooseInput.v1.Apr23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    // Globals
+    var scriptName;                 // the name of this script
+    var testVersion;                // version identifier for this test
+    var seed;                       // RNG seed
+    var frameSequence = [];         // sequence of frames and their properties
+    var frame;                      // single frame
+    var picDiv;                     // the div containing pictures
+    var pic1;                       // picture 1
+    var pic2;                       // picture 2
+    var canvasDiv;                  // the div containing the canvas
+    var feedback;                   // feedback div
+    var pics = [];                  // array of all pictures, in sequence
+    var picsSeq = [];               // array of pictures from input file
+    var index1;                     // current index of picture1 in pics[]
+    var index2;                     // current index of picture2 in pics[]
+    var op;                         // picture's opacity during animation
+    var el;                         // the picture element at response
+    var trial;                      // trial number
+    var numTrials;                  // number of trials in the current sequence
+    var trialStart = [];            // array logging timestamp of trial start
+                                    // in ms since test start (high resolution)
+    var trialStartUnix;				// Unix ms timestamp of trial start
+                                    // (low resolution)
+    var lastEvent = 0;				// timestamp for most recent response event
+                                    // (high resolution)
+    var trialLength = [];           // duration of trial (high resolution)
+    var frameCount = [];			// number of frames on this trial
+    var trialType = [];             // type of trial (practice2-3, test)
+    var trialImg = [];              // current rising image
+    var rt = [];                    // reaction time (high resolution)
+    var go = [];                    // go-nogo trial
+                                    // go = 0 => mountains
+                                    // go = 1 => cities
+                                    // go = 2 => scrambled
+    var correct = [];               // response correct (0,1)
+                                    // 0: no response to go; go response to no-go
+                                    // 1: go response to go; no response to no-go
+    var responseCode = [];          // code assigned to current response (1-10)
+    var responseType = [];          // type of response (0,1,2)
+                                    // 0: omission or correct withdrawal
+                                    // 1: late response to a previous trial
+                                    //    (image decreasing in opacity)
+                                    // 2: response within the current trial
+                                    //    (image increasing in opacity)
+    var percentImage = [];          // opacity of picture gaining opacity at response (0-1)
+    var imageOpacity = [];			// opacity of picture that the response was assigned to
+    var pressTime = [];			    // time of presses in ms from start of test
+                                    // for each trial (high resolution)
+    var responseTimeStamp = [];		// timestamps of response (low resolution)
+    var trialTimeStamp = [];		// timestamps of trials beginning (low resolution)
+    var qcMaxAllowedStreak = 75;    // maximum number of consecutive trials
+                                    // participant can omit before getting qc flagged
+    var noRespStreak = 0;			// qc variable for logging how many
+                                    // consecutive trials participant omitted
+    var maxNoRespStreak = 0;		// qc variable for logging the maximum number
+                                    // of consecutive trials participant omitted
+    var state = [];                 // response states
+    var results = [];               // array to store trials details and responses
+    var outcomes = {};              // object containing outcome variables
+    var score;                      // score for feedback:
+                                    // geometric mean of mountain and city trial accuracy [0-100]
+    var testStartTime;              // timestamp of test start (since Unix epoch)
+    var imageSize;                  // size of image (either 'regular' or 'magnified')
+    var mprop;                      // URL parameter: proportion of mountain images
+    var ntrials;                    // URL parameter: number of image alternations
+    var picsSeqMethod;              // URL parameter: method for choosing an image sequence
+    var useChooseInput;				// URL parameter: whether to use chooseInput
+    var debug;                      // URL parameter: output to console
+    var inputFile;                  // URL parameter: file containing the picture sequence
+    var showresults;                // URL parameter: if we want to show results in a popup window and save to file
+    var autosave;                   // URL parameter: if they want to save data in a file automatically
+    var filename;                   // URL parameter: filename for data
+    var nopractice;                 // URL parameter: set to 'true' to skip practice
+    var usage = "";                 // URL parameter: show usage
+    var chosenInput;                // input type (taps or keys)
+	var practiceChoice = null;	// whether the participant chose to complete optional practice trials
+
+	// message for optional practice trials
+	function showOptionalPractice()
+	{
+		setTimeout(function(){
+			showAlert("<h3>TMB Continuous Performance</h3>" +
+					  "Please choose whether to:<br><br><br>" +
+					  "<label><input class='radioAlign' id='practiceSkip' type='radio' name='practice' value='skip' checked>Skip instructions & practice trials</label><br><br>"+
+					  "<label><input class='radioAlign' id='practiceNoSkip' type='radio' name='practice' value='noSkip'>View instructions & practice trials</label><br>"+
+					  "<br><br>",
+					  "Click here to continue",
+					  function ()
+					  {
+						  practiceChoice = document.getElementById('practiceSkip').checked ? 'skip' : 'noSkip';
+					setFrameSequence();
+				},
+					  '20pt');
+		},50);
+	}
+	
+    function ltqnorm (p)
+    {
+        /* Lower tail quantile for standard normal distribution function.
+
+            This function returns an approximation of the inverse cumulative
+            standard normal distribution function.  I.e., given P, it returns
+            an approximation to the X satisfying P = Pr{Z <= X} where Z is a
+            random variable from the standard normal distribution.
+
+            The algorithm uses a minimax approximation by rational functions
+            and the result has a relative error whose absolute value is less
+            than 1.15e-9.
+
+            Author:      Peter John Acklam
+
+        */
+
+        /* Coefficients in rational approximations. */
+        var a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+                 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+
+        var b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+                 6.680131188771972e+01, -1.328068155288572e+01];
+
+        var c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+                 -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+
+        var d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
+                 3.754408661907416e+00];
+
+        var LOW = 0.02425;
+        var HIGH = 0.97575;
+
+        var q, r;
+
+        // errno = 0;
+
+        if (p < 0 || p > 1)
+        {
+            // errno = EDOM;
+            return 0.0;
+        }
+        else if (p === 0)
+        {
+            // errno = ERANGE;
+            return Number.NEGATIVE_INFINITY; /* minus "infinity" */
+        }
+        else if (p === 1)
+        {
+            // errno = ERANGE;
+            return Number.POSITIVE_INFINITY; /* "infinity" */
+        }
+        else if (p < LOW)
+        {
+            /* Rational approximation for lower region */
+            q = Math.sqrt(-2*Math.log(p));
+            return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+                   ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+        }
+        else if (p > HIGH)
+        {
+            /* Rational approximation for upper region */
+            q  = Math.sqrt(-2*Math.log(1-p));
+            return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+                    ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+        }
+        else
+        {
+            /* Rational approximation for central region */
+            q = p - 0.5;
+            r = q*q;
+            return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
+                   (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+        }
+    }
+
+    function setup(mountainProb,randomType)
+    {
+        // creates the sequence of images and 'go' responses,
+        // either from info extracted form an input file,
+        // or by dynamic computation
+
+        pics = [];
+        go = [];
+
+        // This sequence creation method picks an image type and number by a
+        // random draw WITH REPLACEMENT, then vetoes repeats of same image, and
+        // separately more than 1 repeats of mountains. As such, it GUARANTEES
+        // absence of long repeats of mountains, but the proportion of
+        // cities/mountains is APPROXIMATE.
+        function ranDrawPics()
+        {
+            var ran, picType, picNum;
+
+            for(var i = 0; i < numTrials; i++)
+            {
+                // randomly pick a picture type,
+                // with defined marginal probabilities
+                ran = Math.random();
+                if(ran <= mountainProb) picType = 'images/mountain';
+                else picType = 'images/city';
+
+                // randomly pick a picture number [1-10]
+                picNum = Math.floor(Math.random()*10+1);
+
+                // build the filename
+                pics[i] = picType.concat(picNum.toString(),".png");
+
+                // veto repeats of same image and more than 1 repeat of mountains,
+                // but only if the mountain's marginal is low
+                if((i > 0 && pics[i] === pics[i - 1]) ||
+                   (i > 2 && mountainProb < 0.3 &&
+                    pics[i].indexOf('mountain') !== -1 &&
+                    pics[i - 1].indexOf('mountain') !== -1 &&
+                    pics[i - 2].indexOf('mountain') !== -1))
+                {
+                    i--;
+                }
+            }
+        }
+
+        // This sequence creation method picks an image type and number by a
+        // random draw WITHOUT REPLACEMENT, then vetoes repeats of same image,
+        // but not separately repeats of mountains. As such, it DOES NOT
+        // GUARANTEE absence of long repeats of mountains, but the proportion
+        // of cities/mountains is EXACT.
+        function shufflePics()
+        {
+            var randPicNum,
+                previousPicNum = -1,
+                picNum = [1,2,3,4,5,6,7,8,9,10];
+
+            // create a shuffled array of image categories
+            // with defined marginal probabilities
+            var numMountains = Math.floor(mountainProb * numTrials);
+            var mountainsSeq = Array(numMountains).fill('images/mountain');
+            var citiesSeq = Array(numTrials - numMountains).fill('images/city');
+            pics = mountainsSeq.concat(citiesSeq).shuffle().shuffle();
+
+            // now assign image number, vetting for previous image repetition
+            for(var i = 0; i < numTrials; i++)
+            {
+                randPicNum = picNum.slice()
+                                   .filter(function(e)
+                                   {
+                                       return e !== previousPicNum;
+                                   })
+                                   .random();
+                previousPicNum = randPicNum;
+                pics[i] = pics[i].concat(randPicNum.toString(),".png");
+            }
+        }
+
+        // create the picture sequence according to randomType:
+        // - file    --> use the sequence in the input file
+        // - randraw --> draw random pics with replacement
+        // - shuffle --> shuffle a list
+        if(randomType === 'file') pics = picsSeq.slice();
+        else if(randomType === 'randraw') ranDrawPics();
+        else shufflePics();
+
+        // assign first and last picture to 'scrambled'
+        pics.unshift('images/scrambled.png');
+        pics.push('images/scrambled.png');
+
+        // assign the 'go' code:
+        // go = 0 => mountains
+        // go = 1 => cities
+        // go = 2 => scrambled
+        for(var i = 0; i < numTrials + 2; i++)
+        {
+            if(pics[i].indexOf('mountain') !== -1) go[i] = 0;
+            else if(pics[i].indexOf('city') !== -1) go[i] = 1;
+            else go[i] = 2;
+            //console.log(i+" "+pics[i]+" "+go[i]);
+        }
+    }
+
+    function assignTrial(responseOp, n)
+    {
+        // given the opacity at the time of response and the trial number,
+        // it assigns a code to the response and returns the trial assigned
+        // to the response
+
+        // opacity bounds
+        var lowBound = 0.4, midBound = 0.6, highBound = 0.8;
+
+        if (rt[n-1] && rt[n])
+        {
+            // rts already logged for both current and previous trials
+            // don't assign
+            return 0;
+        }
+        else if (rt[n-1] && (responseOp < lowBound))
+        {
+            // rt already logged for previous trial, response is too early
+            // for current trial
+            // don't assign
+            return 0;
+        }
+        else if (!rt[n] &&
+                 frame.type === 'practice2' &&
+                 responseOp <= highBound &&
+                 n === 1)
+        {
+            // fast response to first practice2 trial
+            // assign to current trial
+            responseCode[n] = 9;
+            return n;
+        }
+        else if (rt[n] && (responseOp > highBound))
+        {
+            // rt already logged for current trial, response is too late
+            // for previous trial
+            // don't assign
+            return 0;
+        }
+        else if (!(rt[n-1]) && (responseOp < lowBound))
+        {
+            // response too early for current trial,
+            // assign to previous trial
+            responseCode[n-1] = 1;
+            return n-1;
+        }
+        else if (!(rt[n]) && (responseOp > highBound))
+        {
+            // response is late, but still within the bounds of the current trial
+            // assign to current trial
+            responseCode[n] = 2;
+            return n;
+        }
+        else if (((responseOp >= lowBound) && (responseOp <= highBound)) &&
+                 rt[n-1] && !(rt[n]))
+        {
+            // AMBIGUOUS TRIAL: RT logged for previous but not current trial
+            // assign to current trial
+            responseCode[n] = 3;
+            return n;
+        }
+        else if (((responseOp >= lowBound) && (responseOp <= highBound)) &&
+                 rt[n] && !(rt[n-1]) && (go[n-1] === 1))
+        {
+            // AMBIGUOUS TRIAL: RT logged for current but not previous trial
+            //                  previous is a GO trial
+            // assign to previous trial
+            // N.B. SEE EXCEPTIONS IN FUNCTION report()
+            responseCode[n-1] = 4;
+            return n-1;
+        }
+        else if (((responseOp >= lowBound) && (responseOp <= highBound)) &&
+                 !(rt[n-1]) && !(rt[n]) && (go[n] !== 1) && (go[n-1] === 1))
+        {
+            // AMBIGUOUS TRIAL: no rt assigned to either current or previous trial,
+            //                  previous trial is a GO,
+            //                  current trial is a NOGO OR a scrambled
+            // assign rt to previous trial
+            responseCode[n-1] = 5;
+            return n-1;
+        }
+        else if (((responseOp >= lowBound) && (responseOp <= highBound)) &&
+                 !(rt[n-1]) && !(rt[n]) && (go[n] !== 0) && (go[n-1] !== 1))
+        {
+            // AMBIGUOUS TRIAL: no rt assigned to either current or previous trial,
+            //                  previous trial is a NOGO OR a scrambled,
+            //                  current trial is a GO OR a scrambled
+            // assign rt to current trail
+            responseCode[n] = 6;
+            return n;
+        }
+        else if (((responseOp >= lowBound) && (responseOp <= highBound)) &&
+                 !(rt[n-1]) && !(rt[n]) && (go[n] === 0) && (go[n-1] === 2))
+        {
+            // AMBIGUOUS TRIAL: no rt assigned to either current or previous trial,
+            //                  previous trial is a scrambled,
+            //                  current trial is a NOGO
+            // assign rt to current trail
+            responseCode[n] = 10;
+            return n;
+        }
+        else if (((responseOp > midBound) && (responseOp <= highBound)) &&
+                 !(rt[n-1]) && !(rt[n]) && (go[n] === go[n-1]))
+        {
+            // AMBIGUOUS TRIAL: upper range of ambiguous, no RTs for current or
+            //                  previous trials, current and previous trials
+            //                  are same type of trial
+            // assign to current trial
+            responseCode[n] = 7;
+            return n;
+        }
+        else if (((responseOp >= lowBound) && (responseOp <= midBound)) &&
+                 !(rt[n-1]) && !(rt[n]) && (go[n] === go[n-1]))
+        {
+            // AMBIGUOUS TRIAL: lower range of ambiguous, no RTs for current or
+            //                  previous trials, current and previous trials are
+            //                  same type of trial
+            // assign to previous trial
+            responseCode[n-1] = 8;
+            return n-1;
+        }
+        else
+        {
+            // we should never get here
+            return 0;
+        }
+    }
+
+    function report(e)
+    {
+        var whichTrial, responseOp, tmpTimestamp;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // only allow touch or keyboard
+        if((chosenInput === "taps" &&
+                (e.type === "touchstart" ||
+                    (e.type === "pointerdown" &&
+                        (e.pointerType === "touch" || e.pointerType === "pen")))) ||
+           (chosenInput === "keys" && e.type === "keydown"))
+        {
+            // if a second response comes in too quickly after a previous one,
+            // ignore it (debounce with 50ms delay)
+            // (this can happen when both touchstart and pointerdown are emitted
+            // for the same response, or on fast repeats)
+            var thisEvent = e.timeStamp;
+            if (thisEvent - lastEvent < 50)
+            {
+                return;
+            }
+            else
+            {
+                lastEvent = thisEvent;
+            }
+
+            // extract opacity at the time of the current response
+            responseOp = op.round(6);
+
+            // determine which trial the response belongs to
+            whichTrial = assignTrial(responseOp,trial);
+
+            if(whichTrial)
+            {
+                // record a timestamp of response being logged
+                // (low resolution timer)
+                responseTimeStamp[whichTrial] = Date.now();
+
+                // log time of button press
+                // (high resolution timer)
+                pressTime[whichTrial] = now();
+
+                // assign:
+                // - 1 to a late response to a previous trial
+                //   (image decreasing in opacity)
+                // - 2 to a response within the current trial
+                //   (image increasing in opacity)
+                // - 0 to an omission or correct withdrawal
+                responseType[whichTrial] = (whichTrial === trial) ? 2 : 1;
+
+                // record the opacity of the image that is fading-in
+                // at the time of the response
+                percentImage[whichTrial] = (responseOp * 100).round(0);
+
+                // compute RT, adding previous trial length if the response is
+                // assigned to the previous trial
+                if (whichTrial === trial) // RT is assigned to current trial
+                {
+                    // assign RT (high resolution timer)
+                    rt[whichTrial] = pressTime[whichTrial] - trialStart[whichTrial];
+
+                    // log opacity of image that RT was assigned to
+                    imageOpacity[whichTrial] = (responseOp * 100).round(0);
+                }
+                else // RT is assigned to previous trial
+                {
+                    if (responseCode[whichTrial] === 4) //  RTs assigned in opposite order
+                    {
+                        // **** CORRECTIONS FOR RESPONSE CODE 4 ****
+
+                        // assign earlier image correct RT and opacity:
+                        // --- (later trial response timestamp - previous image start)
+                        rt[whichTrial] = pressTime[whichTrial+1] -
+                                         trialStart[whichTrial];
+                        imageOpacity[whichTrial] = 100 - percentImage[whichTrial+1];
+                        tmpTimestamp = responseTimeStamp[whichTrial];
+                        responseTimeStamp[whichTrial] = responseTimeStamp[whichTrial + 1];
+
+                        // assign later image correct RT and opacity:
+                        // --- (previous response timestamp - current image start)
+                        rt[whichTrial+1] = pressTime[whichTrial] -
+                                           trialStart[whichTrial+1];
+                        imageOpacity[whichTrial+1] = percentImage[whichTrial];
+                        responseTimeStamp[whichTrial + 1] = tmpTimestamp;
+                    }
+                    else // RTs assigned in correct chronological order
+                    {
+                        // assign RT
+                        rt[whichTrial] = pressTime[whichTrial] - trialStart[whichTrial];
+
+                        // log opacity of image that RT was assigned to
+                        imageOpacity[whichTrial] = 100 - (responseOp * 100).round(0);
+                    }
+                }
+
+                // record accuracy:
+                // - go response to go trial: 1
+                // - no response to no-go trial: 1
+                // - go response to no-go trial: 0
+                // - no response to go trial: 0
+                if (go[whichTrial] === 1) correct[whichTrial] = 1;
+                else if (go[whichTrial] === 0) correct[whichTrial] = 0;
+
+                // record response state
+                state[whichTrial] = e.type;
+                if(e.type === 'pointerdown')
+                    state[whichTrial] += ('-'+e.pointerType);
+
+                // give feedback on practice trials
+                if(frame.type === 'practice2' && correct[whichTrial] === 1)
+                {
+                    feedback.innerHTML = 'Correct!';
+                    setTimeout(function(){feedback.innerHTML = ''},500);
+                }
+                else if(frame.type === 'practice2' && correct[whichTrial] === 0)
+                {
+                    feedback.innerHTML = 'Incorrect!';
+                    setTimeout(function(){feedback.innerHTML = ''},500);
+                }
+            }
+        }
+    }
+
+    function saveData()
+    {
+        var trialFlag;
+
+        for (var i = 1; i < numTrials + 1; i++)
+        {
+            if (!(rt[i]))
+            {
+                // set responseType to 0 if no response was made
+                responseType[i] = 0;
+
+                // set accuracy for trials where no response was made
+                if (go[i] === 0) correct[i] = 1;
+                else if (go[i] === 1) correct[i] = 0;
+
+                // set response code, state, and response timestamp to null
+                // if no response was made
+                responseCode[i] = null;
+                state[i] = null;
+                responseTimeStamp[i] = null;
+            }
+
+            trialFlag = null;
+            if (trialType[i] === 'test')
+            {
+                // we qc flag test trial if trialLength > 1600 ms
+                if (trialLength[i] > 1600)
+                {
+                    trialFlag = 1;
+                }
+                else
+                {
+                    trialFlag = 0;
+                }
+
+                // keeping track of longest streak without responding
+                // during test trials
+                if (!(rt[i]) && go[i] !== 2)
+                {
+                    noRespStreak++;
+                    if (noRespStreak > maxNoRespStreak)
+                    {
+                        maxNoRespStreak = noRespStreak;
+                    }
+                }
+                else
+                {
+                    noRespStreak = 0;
+                }
+            }
+
+            // add data to results object
+            results.push(
+            {
+                trialId: trialType[i] + '_trial' + i,
+                trialType: trialType[i],
+                image: trialImg[i],
+                trialLength: (typeof trialLength[i] !== 'undefined' &&
+                              trialLength[i] !== null) ? trialLength[i] : null,
+                go: go[i],
+                frameCount: (typeof frameCount[i] !== 'undefined' &&
+                             frameCount[i] !== null) ? frameCount[i] : null,
+                rt: (typeof rt[i] !== 'undefined' &&
+                     rt[i] !== null) ? rt[i].round(2) : null,
+                correct: (typeof correct[i] !== 'undefined' &&
+                          correct[i] !== null) ? correct[i]: null,
+                imageOpacity: (typeof imageOpacity[i] !== 'undefined' &&
+                               imageOpacity[i] !== null) ? imageOpacity[i] : null,
+                responseType: (typeof responseType[i] !== 'undefined' &&
+                               responseType[i] !== null) ? responseType[i] : null,
+                responseCode: (typeof responseCode[i] !== 'undefined' &&
+                               responseCode[i] !== 0 &&
+                               responseCode[i] !== null)? responseCode[i] : null,
+                trialTimestamp: (typeof trialTimeStamp[i] !== 'undefined' &&
+                                 trialTimeStamp[i] !== null)? trialTimeStamp[i] : null,
+                responseTimestamp: (typeof responseTimeStamp[i] !== 'undefined' &&
+                                    responseTimeStamp[i] !== null) ? responseTimeStamp[i] : null,
+                flagged: trialFlag,
+                state: (typeof state[i] !== 'undefined' &&
+                        state[i] !== null)? state[i] : null
+            });
+        }
+    }
+
+    function picFade()
+    {
+        var canvas, ctx;
+        var trialDuration, opStep, opNext, close2one;
+        var previousT, frameTime;
+        var frame_count = 0;
+
+		// reset all arrays to their initial state
+		// TODO: we should use an object here instead of arrays
+        responseCode = [];
+        rt = [];
+        correct = [];
+        responseType = [];
+        trialLength = [];
+        percentImage = [];
+        imageOpacity = [];
+        pressTime = [];	
+        frameCount = [];
+        trialType = [];
+        trialImg = [];
+        responseCode = [];
+        responseTimeStamp = [];
+        trialTimeStamp = [];
+        state = [];
+        trialStart = [];
+        trial = 0;
+
+        // this is the animation engine
+        function canvasFade(timestamp)
+        {
+            // compute frametime and opacity increment
+            frameTime = timestamp - previousT;
+            if(frameTime) opStep = frameTime / trialDuration;
+
+            // start of trial
+            if(op === 0)
+            {
+                if(trial > 1)
+                {
+                    // record the element that has just shifted
+                    el = pic2;
+                    trialImg[trial] = el.src.split('/').pop();
+
+                    // timestamp the new trial
+                    trialStart[trial] = now(); // high resolution timer
+                    trialStartUnix = Date.now(); // low resolution timer
+                    trialTimeStamp[trial] = trialStartUnix; // low resolution timer
+
+                    trialType[trial] = frame.type;
+                }
+
+                // increment opacity
+                opNext = op + opStep;
+                close2one = (1 - opNext) < (opNext + opStep - 1);
+                if(opNext > 1 || close2one) op = 1;
+                else op = opNext;
+
+                frame_count = 0;
+            }
+
+            // clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // draw the images on the canvas
+            ctx.globalAlpha = (1 - op).round(6);
+            ctx.drawImage(pic1,0,0,canvas.width,canvas.height);
+            ctx.globalAlpha = op.round(6);
+            ctx.drawImage(pic2,0,0,canvas.width,canvas.height);
+            frame_count++;
+
+            // save the current frame's timestamp
+            previousT = timestamp;
+
+            // call self recursively
+            requestAnimationFrame(function(timestamp)
+            {
+                // end of trial
+                if(op === 1)
+                {
+                    // compute previous trial length
+                    trialLength[trial] = (now() - trialStart[trial]).round(2);
+
+                    // log number of frames for this trial
+                    frameCount[trial] = frame_count;
+
+                    // terminate if last trial
+                    if(trial === numTrials + 1)
+                    {
+                        // clear the canvas
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                        if(chosenInput === 'taps')
+                        {
+                            if("ontouchend" in window)
+                                document.removeEventListener('touchstart',report,true);
+                            if(document.PointerEvent)
+                                document.removeEventListener('pointerdown',report,true);
+                        }
+                        else document.removeEventListener('keydown',report,true);
+
+                        saveData();
+                        showFrame(null);
+                        setTimeout(function(){nextTrial()},500);
+                        return;
+                    }
+                    else
+                    {
+                        // increment the trial counter
+                        trial++;
+
+                        // increment the pictures' indices and shift picture sources
+                        index1 ++;
+                        pic1.src = pics[index1];
+                        index2 ++;
+                        pic2.src = pics[index2];
+
+                        // reset opacity to 0
+                        op = 0;
+                    }
+                }
+                // mid-trial
+                else
+                {
+                    // increment opacity
+                    opNext = op + opStep;
+                    close2one = opNext < 1 && (1 - opNext) < (opNext + opStep - 1);
+                    if(opNext > 1 || close2one)
+                    {
+                        op = 1;
+                    }
+                    else op = opNext;
+                }
+
+                // call self
+                canvasFade(timestamp);
+            });
+        }
+
+        // this is the initialization function
+        function init(timestamp)
+        {
+            // initialize the canvas
+            canvas = document.getElementById('canvas');
+            canvas.width = parseInt(window.getComputedStyle(canvasDiv).getPropertyValue("width"));
+            canvas.height = parseInt(window.getComputedStyle(canvasDiv).getPropertyValue("height"));
+            ctx = canvas.getContext('2d');
+            ctx.globalCompositeOperation = 'lighter'; // use 'lighter' compositing!
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // assign trial duration
+            if(frame.type === 'practice2') trialDuration = 2400;
+            else trialDuration = 800;
+
+            // assign initial picture sources, opacity and opacity step increment
+            index1 = 0;
+            index2 = 1;
+            pic1.src = pics[index1];
+            pic2.src = pics[index2];
+            op = 0;
+            opStep = 0;
+
+            // initialize the trial counter
+            trial = 1;
+
+            // record the element that has just shifted
+            el = pic2;
+            trialImg[trial] = el.src.split('/').pop();
+
+            // timestamp the new trial
+            trialStartUnix = Date.now();
+            trialStart[trial] = now();
+            trialType[trial] = frame.type;
+            trialTimeStamp[trial] = trialStartUnix;
+
+            // draw the images on the canvas
+            ctx.globalAlpha = (1 - op).round(6);
+            ctx.drawImage(pic1,0,0,canvas.width,canvas.height);
+            ctx.globalAlpha = op.round(6);
+            ctx.drawImage(pic2,0,0,canvas.width,canvas.height);
+
+            // save the current frame's timestamp
+            previousT = timestamp;
+            
+            // setup response listeners
+			if(chosenInput === 'taps')
+			{
+				if("ontouchend" in window)
+					document.addEventListener('touchstart',report,true);
+
+				// to accomodate for pen input we need to listen to 'pointerdown';
+				// on hybrid Windows devices and Edge browser pen is reported as
+				// pointerdown.pen
+				if(window.PointerEvent)
+					document.addEventListener('pointerdown',report,true);
+			}
+			else
+			{
+				document.addEventListener('keydown',report,true);
+			}
+
+            // start the animation
+            requestAnimationFrame(canvasFade);
+        }
+
+        // initialize everything, then start the animation
+        requestAnimationFrame(function(){requestAnimationFrame(init)});
+    }
+
+    // process discrete responses on practice 1
+    tmbUI.onreadyUI = function()
+    {
+        if(frame.type === 'practice1')
+        {
+            var correct, msg, type;
+
+            if(frame.stim.indexOf('mountain') !== -1) type = 'mountain';
+            else type = 'city';
+
+            correct = (tmbUI.status === "timeout" && type === 'mountain') ||
+                       tmbUI.status !== "timeout" && type === 'city' ? 1 : 0;
+
+            if(correct) msg = "Correct!";
+            else
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+
+                if (type === 'mountain') msg = 'Incorrect.<br><br>' +
+                                               'You do not respond to mountains!<br><br>';
+                else msg = 'You took too long to respond.<br><br>' +
+                           ((chosenInput === 'taps') ?
+                            'You must tap city pictures!<br><br>' :
+                            'You must press and release the space bar<br>' +
+                            'when you see a city picture!<br><br>');
+            }
+
+			setTimeout(function()
+			{
+                showAlert(msg,
+                      (chosenInput === 'taps' ? (!correct ? "Tap here to retry" : ""): ''),
+                      function()
+                      {
+                          showFrame("null");
+                          setTimeout(function(){nextTrial();},1000);
+                      },
+                      '20pt',
+                      correct ? 1000 : '',
+                      (chosenInput === 'taps' ? null : 'Press the SPACEBAR to retry'),
+                      true);
+            },200);
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame)
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin")
+            {
+                showAlert(frame.message,
+                    (chosenInput === 'taps' ? "Tap here for instructions" : ''),
+                    function ()
+                    {
+                        nextTrial();
+                    },
+                    '20pt',
+                    null,
+                    (chosenInput === 'taps' ? null : 'Press the SPACEBAR for instructions'),
+                    true);
+            }
+            // else if it's a message frame, show it
+            else if (frame.type === "message")
+            {
+                showAlert(frame.message,
+                    (chosenInput === 'taps' ? "Tap here to continue" : ''),
+                    function ()
+                    {
+                        nextTrial();
+                    },
+                    '20pt',
+                    null,
+                    (chosenInput === 'taps' ? null : 'Press the SPACEBAR to continue'),
+                    true);
+            }
+            // first practice
+            else if (frame.type === "practice1")
+            {
+                tmbUI.timeout = 2000;
+                pic1.src = 'images/' + frame.stim;
+                pic1.classList.add('imgFit');
+                pic2.classList.add('imgFit');
+                showFrame('pics');
+                tmbUI.getInput();
+            }
+            // second practice
+            else if (frame.type === "practice2")
+            {
+                numTrials = 10;
+                setup(0.5, picsSeqMethod);
+
+                pic1.src = pics[0];
+                showFrame('canvasDiv', 'feedback');
+                setTimeout(function ()
+                {
+                    picFade();
+                }, 1000);
+            }
+            // third practice
+            else if (frame.type === "practice3")
+            {
+                numTrials = 20;
+                setup(0.5, picsSeqMethod);
+
+                pic1.src = pics[0];
+                showFrame('canvasDiv', 'feedback');
+                setTimeout(function ()
+                {
+                    picFade();
+                }, 1000);
+            }
+            // test
+            else if (frame.type === "test")
+            {
+                Math.seedrandom(seed);
+                if (picsSeq.length)
+                {
+                    numTrials = picsSeq.length;
+                    setup(mprop, 'file');
+                }
+                else
+                {
+                    numTrials = ntrials;
+                    setup(mprop, picsSeqMethod);
+                }
+
+                pic1.src = pics[0];
+                showFrame('canvasDiv');
+                setTimeout(function ()
+                {
+                    picFade();
+                }, 1000);
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            var tmp1, tmp2, tmp3, tmp4, flaggedTrials;
+
+            // show cursor
+            showCursor("document.body");
+
+            // extract test trials, correct trials and correct go trials
+            tmp1 = results.filter(function (obj)
+            {
+                return obj.trialType === 'test' && obj.go !== 2;
+            });
+            tmp2 = tmp1.filter(function (obj)
+            {
+                return obj.correct === 1;
+            });
+            tmp3 = tmp2.filter(function (obj)
+            {
+                return obj.rt !== null;
+            });
+
+            // compute commission errors (go response to no-go trial)
+            // and omission errors (no-go response to go trial)
+            var CE = tmp1.filter(function (obj)
+            {
+                return obj.correct === 0 && obj.go === 0;
+            });
+            var OE = tmp1.filter(function (obj)
+            {
+                return obj.correct === 0 && obj.go === 1;
+            });
+            var nMoun = tmp1.filter(function (obj)
+            {
+                return obj.image.indexOf('mountain') !== -1;
+            }).length;
+            var CEprop = CE.length / nMoun;
+            var nCity = tmp1.filter(function (obj)
+            {
+                return obj.image.indexOf('city') !== -1;
+            }).length;
+            var OEprop = OE.length / nCity;
+
+            // compute d' and bias
+            // (avoid infinity by adding or subtracting 0.5 error when
+            //  pHit and/or pFA are 0 or 1)
+            // pHit = 1 - CEprop
+            // pFA = OEprop
+            // d' = norminv(pHit) - norminv(pFA)
+            // crit = (-1 * (norminv(pHit) + norminv(pFA)) / 2
+            var pHit = (CE.length === 0) ? (1 - (0.5 / nMoun)) :
+                       (CE.length === nMoun) ? (0.5 / nMoun) :
+                       (1 - CEprop);
+            var pFA = (OE.length === 0) ? (0.5 / nCity) :
+                      (OE.length === nCity) ? (1 - (0.5 / nCity)) :
+                      OEprop;
+            var zHit = ltqnorm(pHit);
+            var zFA = ltqnorm(pFA);
+
+            tmp4 = tmp3.length ? tmp3[0].state : 'none';
+            tmp4 = /key/i.test(tmp4) ? 'keyboard' :
+                   /touch/i.test(tmp4) ? 'touch' :
+                   /mouse/i.test(tmp4) ? 'mouse' :
+                   /pen/i.test(tmp4) ? 'pen' :
+                   'unknown';
+
+            outcomes.accuracy = (tmp2.length / tmp1.length).round(4);
+            outcomes.meanRTc = tmp3.length ? tmp3.pluck('rt').average().round(4) : null;
+            outcomes.medianRTc = tmp3.length ? tmp3.pluck('rt').median().round(4) : null;
+            outcomes.sdRTc = tmp3.length > 1 ? tmp3.pluck('rt').sd().round(4) : null;
+            outcomes.cvRTc = tmp3.length > 1 ? outcomes.sdRTc / outcomes.meanRTc : null;
+            if (outcomes.cvRTc !== null)
+            {
+                outcomes.cvRTc = outcomes.cvRTc.round(4);
+            }
+            outcomes.goAccuracy = (1 - OEprop).round(4);
+            outcomes.nogoAccuracy = (1 - CEprop).round(4);
+            outcomes.dprime = (zHit - zFA).round(4);
+            outcomes.crit = ((-1 * (zHit + zFA)) / 2).round(4);
+
+            // Score is the geometric mean of accuracies of responses to cities
+            // and to mountains, expressed as percentage. This correlates highly
+            // with D' (r=0.84). The range is 0-100.
+            score = (100 * Math.sqrt(outcomes.goAccuracy * outcomes.nogoAccuracy)).round(4);
+            outcomes.score = score;
+
+            // qc flag for high omission error rate
+            outcomes.flag_omissionErrorRate = outcomes.goAccuracy < .5 ? 1 : 0;
+
+            // qc flag for trialLength of flagged trials exceeding 60,000 ms
+            flaggedTrials = tmp1.filter(function (obj)
+            {
+                return obj.flagged === 1;
+            }).pluck('trialLength');
+            outcomes.flag_trialFlags = flaggedTrials.sum() > 60000 ? 1 : 0;
+
+            // qc flag for participant not responding for 75 consecutive trials
+            outcomes.flag_nonResponse = maxNoRespStreak > qcMaxAllowedStreak ? 1 : 0;
+
+            outcomes.didPracticeTrials = (nopractice === 'false' || 
+            							  practiceChoice === 'noSkip') ? 1 : 0;
+            outcomes.responseDevice = tmp4;
+            outcomes.imageSize = imageSize;
+            outcomes.testVersion = testVersion;
+
+            if(debug === "true")
+            {
+                logResults(results,'cum');
+                logResults([outcomes],'cum');
+            }
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "GradCPTresults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                tmbSubmitToServer(results,score,outcomes);
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence ()
+    {
+        var testMessage, testTime;
+
+        // hide mouse cursor
+        hideCursor("document.body");
+
+        // determine how long test will take
+        testTime = Math.ceil(ntrials * .8 / 60);
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>Continuous Concentration</h2><br>" +
+                      "<img src=images/scrambled.png alt='Title img'><br><br>"),
+            "instruction1": ("<h2>Instructions:</h2>" +
+                             "<img src=images/mountain1.png alt='Mountain img'>" +
+                             "<img src=images/city1.png alt='City img'>" +
+                             "<br>You will see pictures<br>" +
+                             "of mountains and cities.<br><br>"),
+            "practice1": ("<h3>Instructions:</h3>" +
+                          "When you see a <b>CITY</b> picture,<br>" +
+                          (chosenInput === 'taps' ? "<b>tap it</b> "
+                                    : "press and release the <b>SPACE BAR</b><br>") +
+                          "as quickly as you can.<br><br>" +
+                          "When you see a <b>MOUNTAIN</b> picture,<br>" +
+                          (chosenInput === 'taps' ? "<b>DON'T TAP</b> it.<br><br>"
+                                    : "<b>DON'T PRESS</b> any key.<br><br>") +
+                          "Let's practice.<br><br>"),
+            "practice2": ("Good!<br><br>" +
+                          "For the next part of the practice,<br>" +
+                          "the pictures will fade from one to the next<br>" +
+                          "without pausing.<br><br>"),
+            "practice3": ("The task is the same as before:<br><br>" +
+                          "When you see a <b>CITY</b> picture<br>" +
+                          (chosenInput === 'taps' ? "<b>tap it</b> "
+                                    : "press and release the <b>SPACE BAR</b><br>") +
+                          "as quickly as you can.<br><br>" +
+                          "When you see a <b>MOUNTAIN</b> picture<br>" +
+                          (chosenInput === 'taps' ? "<b>DON'T TAP</b> it.<br><br>"
+                                    : "<b>DON'T PRESS</b> any key.<br><br>") +
+                          "Let's practice.<br><br>"),
+            "practice4": ("Great!<br><br>" +
+                          "For the final part of the practice,<br>" +
+                          "the pictures will alternate faster<br>" +
+                          "and there will be no feedback.<br><br>"),
+            "practice5": ("The task is the same as before:<br><br>" +
+                          "When you see a <b>CITY</b> picture<br>" +
+                          (chosenInput === 'taps' ? "<b>tap it</b> "
+                                    : "press and release the <b>SPACE BAR</b><br>") +
+                          "as quickly as you can.<br><br>" +
+                          "When you see a <b>MOUNTAIN</b> picture<br>" +
+                          (chosenInput === 'taps' ? "<b>DON'T TAP</b> it.<br><br>"
+                                    : "<b>DON'T PRESS</b> any key.<br><br>") +
+                          "Let's practice.<br><br>"),
+            "practice6": ("Excellent!<br><br>" +
+                          "Next, we'll start the task. We will<br>" +
+                          "not give you any feedback.<br><br>" +
+                          "The activity will only last " +
+                          testTime + "<br>" + 
+                          (testTime === 1 ? "minute" : "minutes") + 
+                          ", but it may feel like a" +
+                          "<br>long time.<br><br>"),
+            "test1": ("Remember:<br><br>" +
+                      "When you see a <b>CITY</b> picture<br>" +
+                      (chosenInput === 'taps' ? "<b>tap it</b> "
+                                : "press and release the <b>SPACE BAR</b><br>") +
+                      "as quickly as you can.<br><br>" +
+                      "When you see a <b>MOUNTAIN</b> picture<br>" +
+                      (chosenInput === 'taps' ? "<b>DON'T TAP</b> it.<br><br>"
+                                : "<b>DON'T PRESS</b> any key.<br><br>") +
+                      "Let's start the test.<br><br>")
+        };
+
+
+		// view landing page unless there is optional practice skipping
+		if (nopractice !== 'optional')
+		{
+			// type of frame to display
+			var frameType = ["begin"];
+
+			// message to display
+			var frameMessage = [testMessage.begin];
+
+			// pictures
+			var frameStim = [""];
+
+			// push all components into the frames chain
+			for(var i=0; i<frameType.length; i++)
+			{
+				frameSequence.push(
+				{
+					type: frameType[i],
+					message: frameMessage[i],
+					stim: frameStim[i]
+				});
+			}
+        }
+
+        if(nopractice === 'false' || practiceChoice === 'noSkip')
+        {
+            // Practice1
+
+            frameType = ["message","message",
+                         "practice1","practice1","practice1",
+                         "practice1","practice1","practice1"];
+
+            // message to display
+            frameMessage = [testMessage.instruction1,testMessage.practice1,
+                            "","","","","",""];
+
+            // pictures
+            frameStim = ["","",
+                         'city1.png','mountain1.png','city2.png',
+                         'city3.png','mountain2.png','mountain3.png'];
+
+            // push all components into the frames chain
+            for(i = 0; i<frameType.length; i++)
+            {
+                frameSequence.push(
+                {
+                    type: frameType[i],
+                    message: frameMessage[i],
+                    stim: frameStim[i]
+                });
+            }
+
+            // Practice 2
+
+            frameType = ["message","message","practice2"];
+            frameMessage = [testMessage.practice2,testMessage.practice3,""];
+            frameStim = ["","",""];
+
+            for(i=0; i<frameType.length; i++)
+            {
+                frameSequence.push(
+                {
+                    type: frameType[i],
+                    message: frameMessage[i],
+                    stim: frameStim[i]
+                });
+            }
+
+            // Practice 3
+
+            frameType = ["message","message","practice3","message"];
+            frameMessage = [testMessage.practice4,testMessage.practice5,
+                            "",testMessage.practice6];
+            frameStim = ["","","",""];
+
+            for(i=0; i<frameType.length; i++)
+            {
+                frameSequence.push(
+                {
+                    type: frameType[i],
+                    message: frameMessage[i],
+                    stim: frameStim[i]
+                });
+            }
+        }
+
+        // Test
+
+        frameType = ["message","test"];
+        frameMessage = [testMessage.test1,""];
+        frameStim = ["",""];
+
+        for(i=0; i<frameType.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: frameType[i],
+                message: frameMessage[i],
+                stim: frameStim[i]
+            });
+        }
+
+        // read the input file and call the parser
+        if(inputFile)
+        {
+            ajaxRequest({url: inputFile,
+                         async: true,
+                         callback: parseFile});
+        }
+        else nextTrial();
+    }
+
+    // this is the input file's parser
+    function parseFile(text)
+    {
+        // parse the input file
+        if(text)
+        {
+            var lines, word, errors = 0;
+
+            // Parse the file's text into lines by splitting on 'newline'.
+            // (do not use regexp, e.g. /\r?\n/, because ie8 throws up)
+            lines = text.split("\n");
+
+            // parse each line
+            for (var i = 0; i < lines.length; i++)
+            {
+                // first check if this line is a comment (starts with '*'?)
+                if(lines[i].charAt(0) === "*") continue;
+
+                // split on 'whitespace'
+                word = lines[i];
+
+                // sanitize the word, so there are no linefeeds at the end
+                word = word.trim();
+
+                // save words, or stop and report an error
+                if(word.length) picsSeq.push(word);
+                else
+                {
+                    errors++;
+                    break;
+                }
+            }
+
+            if(errors)
+            {
+                showAlert("parseFile: Incorrect formatting of line " + (i+1) + ".",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else if(picsSeq.length === 0)
+            {
+                showAlert("parseFile: Error parsing input file's content.",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else nextTrial();
+        }
+        else showAlert("ajaxRequest: Error reading input file.",
+                       "",
+                       null,
+                       '20pt');
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        scriptName = window.location.pathname.split('/').pop();
+
+        // set the scale for mobile devices
+        setBodyScale(700,600);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>input=testInput.txt</i> -- pictures sequence input file<br>" +
+                "<i>seed=123</i> -- random number generator seed<br>" +
+                "<i>mprop=0.1</i> -- proportion of mountain trials<br>" +
+                "<i>ntrials=150</i> -- number of image alternations<br>" +
+                "<i>picseq=shuffle</i> -- method for generating the image sequence [shuffle, randraw]<br>" +
+                "<i>nopractice=true</i> -- omit instructions and practice phase [true, false, optional]<br>" +
+                "<i>chooseinput=true</i> -- whether we use chooseInput when touch is detected<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+            document.getElementById('helpSpan').style.textAlign = 'left';
+            document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // reference the html elements
+        picDiv = getID('pics');
+        pic1 = getID('picture1');
+        pic2 = getID('picture2');
+        canvasDiv = getID('canvasDiv');
+        feedback = getID('feedback');
+
+        // set the random seed
+        seed = getUrlParameters("seed","",true);
+        if(!(seed = parseInt(seed))) seed = 1;
+        Math.seedrandom(seed);
+
+        // see if they don't want practice or optional practice
+        nopractice = getUrlParameters("nopractice","",true);
+        if (!nopractice) nopractice = 'false';
+ 		else if (!(nopractice === 'true' || nopractice === 'false' || nopractice === 'optional'))
+		{
+			showAlert("Error: URL parameter 'nopractice' must<br>" +
+					  "be set to 'true', 'false', or 'optional'.<br><br>",
+					  "",
+					  null,
+					  '20pt');
+			return;
+		}		
+
+        // specify the input file
+        inputFile = getUrlParameters("input", "", true);
+
+        // specify the proportion of mountain trials
+        mprop = getUrlParameters("mprop", "", true);
+        if (!(mprop = parseFloat(mprop))) mprop = 0.1;
+
+        // specify the number of trials
+        ntrials = getUrlParameters("ntrials", "", true);
+        if (!(ntrials = parseInt(ntrials))) ntrials = 150;
+
+        // parse number of trials from input file
+        if (inputFile) ntrials = Number(inputFile.match(/picsInput_(.*?)imgs_/i)[1])
+
+        // specify the method for choosing the image sequence
+        picsSeqMethod = getUrlParameters("picseq", "", true);
+        if (['shuffle','randraw'].indexOf(picsSeqMethod) === -1)
+            picsSeqMethod = 'shuffle';
+            
+        // check if they want to bypass chooseInput
+        useChooseInput = getUrlParameters("chooseinput", "", true);
+        if (!useChooseInput || useChooseInput === 'true')
+		{
+			useChooseInput = true;
+		}
+		else if (useChooseInput === 'false')
+		{
+			useChooseInput = false;
+		}
+		else
+		{
+			showAlert("Error: URL parameter 'chooseinput' must<br>" +
+					  "be set to 'true' or 'false'.<br><br>",
+					  "",
+					  null,
+					  '20pt');
+			return;
+		}
+
+        // set the test version
+        testVersion = scriptName.split('.').slice(0,-1).join('.');
+
+        // disable spurious user interactions
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        // show pictures 1.5 larger on small screens
+        if((screen.width < 768 && screen.height < 1024) ||
+           (screen.width < 1024 && screen.height < 768))
+        {
+            canvasDiv.classList.replace('picsRegular','picsLarge');
+            picDiv.classList.replace('picsRegular','picsLarge');
+            feedback.classList.replace('feedbackRegular','feedbackLarge');
+            imageSize = 'magnified';
+        }
+        else imageSize = 'regular';
+
+        // test start time
+        testStartTime = Date.now();
+
+        // if we are in an iframe, focus it
+        if(window.top.iframe !== undefined) window.top.iframe.contentWindow.focus();
+
+        function setInput(input)
+        {
+            // determine events to listen to
+            if(input === 'taps')
+            {
+                tmbUI.UIevents = ['taps'];
+            }
+            else
+            {
+                tmbUI.UIevents = ['keys'];
+            }
+
+            chosenInput = input;
+
+            // preload images, then create the trials chain
+            // and start the testing sequence
+            var images = ['images/scrambled.png','images/city1.png','images/city2.png',
+                          'images/city3.png','images/city4.png','images/city5.png',
+                          'images/city6.png','images/city7.png','images/city8.png',
+                          'images/city9.png','images/city10.png','images/mountain1.png',
+                          'images/mountain2.png','images/mountain3.png','images/mountain4.png',
+                          'images/mountain5.png','images/mountain6.png','images/mountain7.png',
+                          'images/mountain8.png','images/mountain9.png','images/mountain10.png'];
+            imagePreLoad(images,{pipeline: false, 
+								 callBack: nopractice === 'optional' ? 
+								 showOptionalPractice : setFrameSequence});
+        }
+
+        
+        if(!hasTouch) setInput('keys');
+        else 
+        {
+        	if (useChooseInput) chooseInput({keyboard: true, touch: true},setInput);
+        	else setInput('taps');
+        }
+        
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <div id="pics" class="picsRegular">
+        <img id="picture1" src="" alt="">
+        <img id="picture2" src="" alt="">
+    </div>
+
+    <div id="canvasDiv" class="picsRegular">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="feedback" class="feedbackRegular"></div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it---------->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

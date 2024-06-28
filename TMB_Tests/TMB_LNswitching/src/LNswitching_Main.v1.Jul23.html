@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Letter/Number Switching">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test, task switching">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB LN-Switching">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+      LNswitching.html?help
+
+     For reference see:
+
+      Ophir E, Nass C, Wagner AD. Cognitive control in media multitaskers.
+        Proc Natl Acad Sci U S A. 2009;106(37):15583‐15587.
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Letter/Number Switching</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <style>
+
+        *
+        {
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        *::after, *::before
+        {
+            box-sizing: border-box;
+        }
+
+		html
+		{
+			width: 100vw;
+			height: 100vh;
+		}
+		
+        body
+        {
+            width: 100vw;
+            height: 100vh;
+            margin: auto;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 13pt;
+            text-align: center;
+        }
+
+        img
+        {
+            height: 150px;
+        }
+
+        .stim
+        {
+            width: 150px;
+            height: 150px;
+            font-size: 100px;
+            line-height: 125px;
+            clear: both;
+            border: 1px solid black;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .button
+        {
+            border: 2px solid #f1c40f;
+            border-radius: 1em;
+            background: transparent;
+            color: #000000;
+            box-shadow: 0 5px 15px 5px grey;
+            cursor: pointer;
+        }
+
+        .button:active
+        {
+            box-shadow: 0 5px 15px 1px lightgrey
+        }
+
+        .button:focus
+        {
+            outline: none
+        }
+
+        .responseButton
+        {
+            -webkit-appearance: none;
+            background: darkgrey;
+            font-size: 40pt;
+            width: 150px;
+            margin: 5px;
+            border: 5px solid lightgray;
+            border-right: 5px solid #727272;
+            border-bottom: 5px solid #727272;
+            padding: 0;
+            color: #ffffff;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .responseButton:active
+        {
+            border: 5px solid lightgray;
+            border-left: 5px solid #727272;
+            border-top: 5px solid #727272;
+        }
+
+        .responseButton:focus
+        {
+            outline: none
+        }
+
+
+        #sequence
+        {
+            border: none;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-top: -75px;
+            margin-left: -75px;
+            display: none;
+        }
+
+        #judgement
+        {
+            width: 300px;
+            height: 150px;
+            font-size: 75px;
+            line-height: 125px;
+            clear: both;
+            text-align: center;
+            font-family: monospace;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-top: -250px;
+            margin-left: -150px;
+            border: none;
+            display: none;
+        }
+
+
+        #left
+        {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            left: 50%;
+            top: 50%;
+            margin-top: 100px;
+            margin-left: -185px;
+            display: none;
+        }
+
+        #right
+        {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            left: 50%;
+            top: 50%;
+            margin-top: 100px;
+            margin-left: 25px;
+            display: none;
+        }
+        
+        .responseHighlight
+        {
+            border: 5px solid red;
+        }
+
+
+    </style>
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.May23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var testVersion;                // version identifier for this test
+    var images = [];                // images to load
+    var chain;                      // chain of timeouts for stimulus presentation
+    var score = 0;                  // score variable
+    var results = [];               // array to store trials details and responses
+    var outcomes = {};              // object containing outcome variables
+    var frameSequence = [];         // object containing the sequence of frames and their properties
+    var frame;                      // single frame object
+    var seed;                       // URL parameter: random generator seed
+    var debug;                      // URL parameter: output to console
+    var demo;                       // URL parameter: run in demo mode
+    var showresults;                // URL parameter: if they want to show results in a popup window
+    var autosave;                   // URL parameter: if they want to save data in a file automatically
+    var filename;                   // URL parameter: filename for data
+    var usage = "";                 // URL parameter: show usage
+    var nopractice = true;          // URL parameter: whether or not to show practice
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        var   correct, errorMessage;
+
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+
+        // clear the stimulus chain, in case it's still running
+        clearChainTimeouts(chain);
+
+        // is the response correct?
+        correct = ((tmbUI.response === 'rightResponse' && frame.response === "R") ||
+                   (tmbUI.response === 'leftResponse'  && frame.response === "L")) ? 1 : 0;
+
+        // store the results
+        results.push(
+        {
+            type: frame.type, // one of practice or test
+            conflict: frame.conflict, // conflict (boolean)
+            incongruent: frame.incongruent, // boolean 1 incongruent, 0 congruent
+            switches: frame.switches, // boolean 1 for switch, 0 for a repeat
+            report: frame.judgement, // the element to report ('letter','number')
+            LN: frame.LN, // the LN pair
+            target: frame.target, // the letter or number in the pair to report
+            responseTarget: frame.response, // target of the response ('R','L')
+            response: tmbUI.response, // ID of the element that elicited the response
+            correct: correct, // boolean correct
+            rt: tmbUI.rt, // delay b/w onset and response
+            dwell: tmbUI.dwell, // keyup - keydown
+            state: tmbUI.status // state of the response handler
+        });
+
+        // if we are debugging, log the results
+        if(debug === 'true') logResults(results,'inc');
+
+
+        // deal with errors during practice by repeating instructions
+        // and repeating the trial
+        if(~frame.type.indexOf('practice') && !correct)
+        {
+            errorMessage = "Your target was the <b>" +
+                           frame.judgement + " " + frame.target + "</b>:<br>" +
+                           (frame.response === "R" ?
+                            ("you should have clicked<br>" +
+                             "the <b>right</b> button.<br><br>") :
+                            ("you should have clicked<br>" +
+                             "the <b>left</b> button.<br><br>"));
+            showAlert(errorMessage,
+                      "Click here to retry",
+                      function()
+                      {
+                        frameSequence.unshift(frame);
+                        showFrame("null");
+                        setTimeout(function(){nextTrial();},1000);
+                      },
+                      '20pt');
+        }
+        // if the input event returns a timeout,
+        // stop the sequence and advise the participant
+        else if(tmbUI.status === "timeout")
+        {
+            // rewind the frame sequence by one frame,
+            // so that the same frame is displayed again
+            frameSequence.unshift(frame);
+
+            showAlert("Please respond as quickly as you can.<br><br>" +
+                      "Click the left or right button.<br><br>",
+                      "Click here to retry",
+                      function()
+                      {
+                          showFrame("null");
+                          setTimeout(function(){nextTrial();},1000);
+                      },
+                      '20pt');
+        }
+        // else all is good, advance to the next trial
+        else
+        {
+            nextTrial();
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if(frame)
+        {
+            // check if it's the startup frame
+            if(frame.type === "begin") showAlert(frame.message,
+                                                 "Click here for instructions",
+                                                 function() {nextTrial();},
+                                                 '20pt');
+
+            // if it's a message frame, show it
+            else if(frame.type === "message") showAlert(frame.message,
+                                                        "Click here to continue",
+                                                        function ()
+                                                        {
+                                                            showFrame("null");
+                                                            nextTrial();
+                                                        },
+                                                        '20pt');
+            // else show the boxes
+            else
+            {
+                // chain the stimulus presentation
+                chain = chainTimeouts(
+                                      function(){requestAnimationFrame(function()
+                                      {
+                                          getID("sequence").innerHTML = frame.LN;
+                                          getID("judgement").innerHTML = frame.judgement.toString().toUpperCase();
+                                          showFrame(null);
+                                      })
+                                      },
+                                      150,
+                                      function(){requestAnimationFrame(function()
+                                                    {
+                                                        showFrame("judgement");
+                                                    })
+                                                },
+                                      750,
+                                      function(){requestAnimationFrame(function()
+                                                    {
+                                                        showFrame("left", "right", "sequence","judgement");
+                                                        tmbUI.getInput();
+                                                    })
+                                                }
+                                     );
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            // all test trials (excluding practice and timeouts)
+            var tmp1 = results.filter(function( obj )
+            {
+                return obj.type !== 'practice' &&
+                       obj.state !== 'timeout';
+            });
+
+            // all correct rts
+            var tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+
+            // response device
+            var tmp3 = tmp1[0].state;
+            tmp3 = /key/i.test(tmp3) ? 'keyboard' :
+                   /touch/i.test(tmp3) ? 'touch' :
+                   /mouse/i.test(tmp3) ? 'mouse' :
+                   /pen/i.test(tmp3) ? 'pen' :
+                   'unknown';
+
+            // compute score and outcome variables
+            outcomes.accuracy = (tmp2.length / tmp1.length).round(2);
+            outcomes.meanRTc = tmp2.length ? tmp2.average().round(2) : 0;
+            outcomes.medianRTc = tmp2.length ? tmp2.median().round(2) : 0;
+            outcomes.sdRTc = tmp2.length ? tmp2.sd().round(2) : 0;
+            outcomes.responseDevice = tmp3;
+            outcomes.testVersion = testVersion;
+
+            //conflict
+            var tmpConflict = tmp1.filter(function( obj )
+            {
+                return obj.conflict === 1;
+            });
+            var tmpNoConflict = tmp1.filter(function( obj )
+            {
+                return obj.conflict === 0;
+            });
+            var tmp2Conflict = tmpConflict.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+            var tmp2NoConflict = tmpNoConflict.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+
+            outcomes.conflictAccuracy = tmpConflict.length ?
+                (tmp2Conflict.length / tmpConflict.length).round(2) : 0;
+            outcomes.conflictMeanRTc = tmp2Conflict.length ? tmp2Conflict.average().round(2) : 0;
+            outcomes.conflictMedianRTc = tmp2Conflict.length ? tmp2Conflict.median().round(2) : 0;
+            outcomes.conflictSDRTc = tmp2Conflict.length ? tmp2Conflict.sd().round(2) : 0;
+
+            outcomes.noConflictAccuracy = tmpNoConflict.length ?
+                (tmp2NoConflict.length / tmpNoConflict.length).round(2) : 0;
+            outcomes.noConflictMeanRTc = tmp2NoConflict.length ? tmp2NoConflict.average().round(2) : 0;
+            outcomes.noConflictMedianRTc = tmp2NoConflict.length ? tmp2NoConflict.median().round(2) : 0;
+            outcomes.noConflictSDRTc = tmp2NoConflict.length ? tmp2NoConflict.sd().round(2) : 0;
+
+            outcomes.conflictAccuracyCost = outcomes.conflictAccuracy - outcomes.noConflictAccuracy;
+            outcomes.conflictRtCost = outcomes.conflictMeanRTc - outcomes.noConflictMeanRTc;
+
+            // N.B. score is the ratio of noConflict to Conflict RTs
+            score = outcomes.conflictMeanRTc ? (outcomes.noConflictMeanRTc / outcomes.conflictMeanRTc).round(2) : 0;
+            outcomes.score = score;
+            outcomes.responseDevice = tmp3;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // if we save locally, append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "LNSwitchresults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                tmbSubmitToServer(results,score,outcomes);
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence ()
+    {
+        var TestMessage;
+        TestMessage =
+        {
+            "begin": ("<h2>Letter/Number Switching</h2>" +
+                      "<img src='images/Inst0.jpg' alt='Title'><br><br>"),
+            "instructions": [("<h3>Instructions</h3>" +
+                              "<img src='images/Inst1.jpg' alt='Instructions'><br><br>"+
+                              "Here your job is to report<br>" +
+                              "either the number or the letter<br>" +
+                              "in this letter/number pair.<br><br>"),
+                             ("<h3>Instructions</h3>"+
+                              "<img src='images/Inst2.jpg' alt='Instructions'><br><br>"+
+                              "The word above the letter-number pair<br>" +
+                              "tells you what to report<br>" +
+                              "(here it's the <b>number</b>).<br><br>"),
+                             ("<h3>Instructions</h3>" +
+                              "<img src='images/Inst3.jpg' alt='Instructions'><br><br>"+
+                              "To report the number <b>1</b>, you click<br>" +
+                              "the button that has that number (<b>left</b>).<br><br>"),
+                             ("<h3>Instructions</h3>" +
+                              "<img src='images/Inst4.jpg' alt='Instructions'><br><br>" +
+                              "To report the letter <b>z</b>, you click<br>" +
+                              "the button that has that letter (<b>right</b>).<br><br>"),
+                             ("<h3>Instructions</h3>" +
+                              "<img src='images/Inst4.jpg' alt='Instructions'><br><br>" +
+                              "Let's do some practice.<br><br>"),
+                             ("Excellent!<br>" +
+                              "You have completed the practice.<br><br>" +
+                              "Now let's do more.<br><br>")],
+            "test": [("Remember!<br><br>" +
+                     "Look at the word on top, then <br>"+
+                     "click the button that has<br>" +
+                     "the letter or number in the pair below.<br><br>" +
+                     "Please try to be QUICK,<br>" +
+                     "but also ACCURATE.<br><br>")]
+        };
+
+        // type of frame to display
+        var frameType = ["begin"];
+
+        // message to display
+        var frameMessage = [TestMessage.begin];
+
+        // letter/number pair ('1a','2b'...)
+        var frameLN = [''];
+
+        // required report ('letter', 'number')
+        var frameReport = [''];
+
+        // the letter or number to report
+        var frameTarget = [''];
+
+        // incongruency (2 => first trial,
+        //               1 => incongruent - target position in pair on opposite side of response,
+        //               0 => congruent - target position in pair on same side of response
+        var frameIncongruency = [0];
+
+        // switch event (2 => first trial,
+        //               1 => switch - current target different than previous,
+        //               0 => repeat - current target same as previous
+        var frameSwitch = [0];
+
+        // response conflict (2 => first trial,
+        //                    1 => elements in pair require different response
+        //                    0 => elements in pair require same response
+        var frameConflict = [0];
+
+        // required response (left => 'L', right => 'R'
+        var frameResponse =[''];
+
+        // Practice trials
+        // ===============
+
+        if (!nopractice || nopractice === 'false')
+        {
+            frameType =
+            frameType.concat(['message','message','message','message','message',
+                              'practice','practice','practice','practice','practice',
+                              'practice','practice','practice','practice','practice',
+                              'message']);
+            frameMessage =
+            frameMessage.concat([TestMessage.instructions[0],TestMessage.instructions[1],
+                                 TestMessage.instructions[2],TestMessage.instructions[3],
+                                 TestMessage.instructions[4],
+                                 '','','','','','','','','','',TestMessage.instructions[5]]);
+            frameLN =
+            frameLN.concat(['','','','','',
+                            '1a','9z','1z','9a','2x','3b','2b','8y','3x','7c','']);
+            frameReport =
+            frameReport.concat(['','','','','',
+                                'number','number','letter','letter','number',
+                                'letter','number','number','letter','letter','']);
+            frameTarget =
+            frameTarget.concat(['','','','','',
+                                '1','9','z','a','2',
+                                'b','2','8','x','c','']);
+
+            frameIncongruency =
+            frameIncongruency.concat([0,0,0,0,0,
+                                      0,1,0,1,0,1,0,1,0,1,0]);
+            frameSwitch =
+            frameSwitch.concat([0,0,0,0,0,
+                                2,0,1,0,1,1,1,0,1,0,0]);
+            frameConflict =
+            frameConflict.concat([0,0,0,0,0,
+                                  0,0,1,0,1,0,0,0,1,1,0]);
+            frameResponse =
+            frameResponse.concat(['','','','','',
+                                  'L','R','R','L','L','L','L','R','R','L','']);
+        }
+
+        // Test trials
+        // ===========
+
+        var tmp0, tmp1, tmp2, tmp3;
+
+        // test trials sequence
+        tmp0 = new Array(73).fill('test');
+        frameType = frameType.concat(['message'],tmp0);
+
+        // messages sequence
+        tmp1 = new Array(73).fill('');
+        frameMessage = frameMessage.concat(TestMessage.test,tmp1);
+
+        // incongruency sequence
+        tmp0 = new Array(36).fill(0); // 36 congruent trials
+        tmp1 = new Array(36).fill(1); // 36 incongruent trials
+        tmp2 = tmp0.concat(tmp1);
+        tmp2.shuffle(); // randomize
+        tmp2.unshift(2); // add initial trial
+        var incongruency = tmp2.slice();
+
+        // conflict sequence
+        tmp2 = tmp0.concat(tmp1); // 36 conflict, 36 no-conflict trials
+        tmp2.shuffle(); // randomize
+        tmp2.unshift(2); // add initial trial
+        var conflict = tmp2.slice();
+
+        // reports and switches sequences
+        tmp0 = new Array(37).fill('number'); // 37 numbers
+        tmp1 = new Array(36).fill('letter'); // 36 letters
+        tmp2 = tmp0.concat(tmp1);
+        var done = 0;
+        while (done < 5000)
+        {
+            // we want 25 switches:
+            // we iteratively shuffle the report sequence and evaluate
+            // the number of switches, until we have 25 switches or
+            // we have reached 5000 iterations
+            done++;
+            tmp2.shuffle(); // shuffle the reports
+            tmp3 = tmp2.map(function(value,index,array)
+            {
+                // return switches
+                return (index === 0 ? 2 :
+                        array[index] === array[index-1] ? 0 : 1)
+            });
+            if (27 === tmp3.sum()) break;
+        }
+        var reports = tmp2.slice();
+        var switches = tmp3.slice();
+
+        // LN pairs and responses sequences
+        var seqLet = ['a','b','c','x','y','z'];
+        var seqNum = [1,2,3,7,8,9];
+        var currentL, currentN, LN, response, target, distractor;
+        var LNseq = [], responseSeq = [], targetSeq = [];
+        switches.forEach(function(value,index)
+        {
+            // initial test trial
+            if(value === 2)
+            {
+                // pick a letter and a number randomly and shuffle their order
+                currentL = seqLet.random();
+                currentN = seqNum.random();
+                LN = [currentL,currentN].shuffle().join('');
+                LNseq.push(LN);
+
+                // determine the response based on the element to report
+                if (reports[index] === 'letter')
+                {
+                    target = currentL;
+                    if (['a','b','c'].indexOf(target)!==-1) response = "L";
+                    else response = "R"
+                }
+                else if (reports[index] === 'number')
+                {
+                    target = currentN;
+                    if ([1,2,3].indexOf(currentN)!==-1) response = "L"
+                    else response = "R"
+                }
+                else
+                {
+                    target = '';
+                    response = '';
+                }
+
+                targetSeq.push(target);
+                responseSeq.push(response);
+            }
+            // all other test trials
+            else
+            {
+                // choose a target and a distractor,
+                // considering the required judgement (letter or number) and
+                // conflict (different or same response for target and distractor)
+                if (reports[index] === 'letter')
+                {
+                    target = seqLet.random();
+
+                    distractor =
+                        (conflict[index] === 1) ?
+                        // if conflict, 'early' letter means big number and vice versa
+                        ((['a','b','c'].indexOf(target)!==-1) ?
+                         [7,8,9].random() :
+                         [1,2,3].random()) :
+                        // if not conflict, 'early' letter means small number
+                        ((['a','b','c'].indexOf(target)!==-1) ?
+                         [1,2,3].random() :
+                         [7,8,9].random());
+                }
+                else if(reports[index] === 'number')
+                {
+                    target = seqNum.random();
+
+                    distractor =
+                        (conflict[index] === 1) ?
+                        // if conflict, small number means 'late' letter and vice versa
+                        (([1,2,3].indexOf(target)!==-1) ?
+                         ['x','y','z'].random() :
+                         ['a','b','c'].random()) :
+                        // if not conflict, small number means 'early' letter
+                        (([1,2,3].indexOf(target)!==-1) ?
+                         ['a','b','c'].random() :
+                         ['x','y','z'].random());
+                }
+                else target = '';
+
+                // now build the LN pair and the required response
+                // from the target and distractor, considering
+                // incongruency (different or same location for target
+                // position and response)
+                if([1,2,3,'a','b','c'].indexOf(target)!==-1)
+                {
+                    //response is on the left
+                    response = "L";
+
+                    // based on incongruency, build the LN pair
+                    LN = (incongruency[index] === 1) ?
+                          distractor+target :
+                          target+distractor;
+                }
+                else
+                {
+                    //response is on the right
+                    response = "R";
+
+                    // based on incongruency, build the LN pair
+                    LN = (incongruency[index] === 1) ?
+                          target+distractor :
+                          distractor+target;
+                }
+                targetSeq.push(target);
+                LNseq.push(LN);
+                responseSeq.push(response);
+            }
+        });
+
+        // concatenate practice and test arrays
+        incongruency.unshift(0); // add message trial to incongruency
+        frameIncongruency = frameIncongruency.concat(incongruency);
+
+        conflict.unshift(0); // add message trial to conflict
+        frameConflict = frameConflict.concat(conflict);
+
+        reports.unshift(''); // add message trial to reports
+        switches.unshift(0); // add message trial to switches
+        frameReport = frameReport.concat(reports);
+        frameSwitch = frameSwitch.concat(switches);
+
+        targetSeq.unshift(''); // add message trial to targets
+        frameTarget = frameTarget.concat(targetSeq);
+
+        responseSeq.unshift(''); // add message trial to responses
+        frameResponse = frameResponse.concat(responseSeq);
+
+        LNseq.unshift(''); // add message trial to the LN sequence
+        frameLN = frameLN.concat(LNseq);
+
+        // finally, push all components into the frames chain
+        for (var i = 0; i < frameType.length; i++)
+        {
+            frameSequence.push(
+                {
+                    type: frameType[i],
+                    message: frameMessage[i],
+                    LN: frameLN[i],
+                    judgement: frameReport[i],
+                    target: frameTarget[i],
+                    incongruent:frameIncongruency[i],
+                    switches: frameSwitch[i],
+                    conflict: frameConflict[i],
+                    response: frameResponse[i]
+                });
+        }
+
+        nextTrial();
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+
+        // add appropriate meta viewport for scaling
+        setBodyScale(700,600);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>nopractice=true</i> -- omits practice trials<br>" +
+                "<i>seed=1234</i> -- random generator seed<br>" +
+                "<i>demo=true</i> -- runs in demo mode only a few trials<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+             	document.getElementById('helpSpan').style.textAlign = 'left';
+                document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want a demo run
+        demo = getUrlParameters("demo", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // check if they want to bypass practice
+        nopractice = getUrlParameters("nopractice", "", true);
+
+        // set the random generator's seed
+        seed = getUrlParameters("seed", "", true);
+        if(!(seed = parseInt(seed))) seed = 'lnSwitch';
+        Math.seedrandom(seed);
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // disable spurious user interactions
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        // set response timeout to 5 seconds
+        tmbUI.timeout = 5000;
+
+        if(!hasTouch) tmbUI.UIevents = ['clicks'];
+        else tmbUI.UIevents = ['taps','clicks'];
+        tmbUI.UIelements = ['leftResponse','rightResponse'];
+        tmbUI.highlight = "responseHighlight";
+
+        images[0]= "images/Inst0.jpg";
+        images[1]= "images/Inst1.jpg";
+        images[2]= "images/Inst2.jpg";
+        images[3]= "images/Inst3.jpg";
+        images[4]= "images/Inst4.jpg";
+        imagePreLoad(images,{pipeline: false, callBack: setFrameSequence});
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <!-- these DIVs contain the stimuli ------------------------------------>
+    <div id="sequence" class="stim">
+        <br>
+    </div>
+    <div id="judgement" class="stim">
+        LETTER
+    </div>
+
+    <!-- these DIVs contain the response buttons --------------------------->
+    <div id="right">
+        <button type="button" id="rightResponse" class="responseButton">
+            789
+            <br>
+            XYZ
+        </button>
+    </div>
+
+    <div id="left">
+        <button type="button" id="leftResponse" class="responseButton">
+            123
+            <br>
+            ABC
+        </button>
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it -->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

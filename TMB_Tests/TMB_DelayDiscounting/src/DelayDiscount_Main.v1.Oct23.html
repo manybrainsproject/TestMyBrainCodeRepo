@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Adaptive Delay Discounting">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB Delay Discount">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+      DelayDiscount.html?help
+
+     For reference, see:
+
+      Mazur, J. E. (1987). An adjusting procedure for studying delayed reinforcement.
+        In: Quantitative Analysis of Behavior: Vol. 5 the Effect of Delay
+        and Intervening Events on Reinforcement Value.
+        Commons, M. L., Mazur, J., Nevin, J. A., Rachlin, H.
+        Erlbaum. Hillsdale, NJ. 55-73.
+
+      Myerson, J., Green, L. (1995). Discounting of delayed rewards: Models of
+       individual choice. J Exp Anal Behav. 64, (3), 263-276.
+
+      Yoon, J. H., & Higgins, S. T. (2008). Turning k on its head: comments
+        on use of an ED50 in delay discounting research.
+        Drug and alcohol dependence, 95(1-2), 169-72.
+
+      Levitt, H. (1971). Transformed up-down methods in psychoacoustics.
+        The Journal of the Acoustical Society of America, 49, 467.
+
+     Notes:
+
+      The user chooses between 2 monetary rewards, one delivered immediately,
+      the other delivered in the future. The immediate reward varies, while the
+      future reward is always $1000, with varying delays. The immediate reward
+      is adjusted after every choice by a staircase procedure designed to
+      home-in on the indifference point, i.e. the immediate value that is
+      equivalent to the future value for the user. It is assumed that value
+      is discounted in time according to an hyperbolic model. Using the model,
+      the discounting factor K is computed for every delay and then averaged.
+      The score is reported as the delay (months) at which the present value
+      is halved, computed as 1/k.
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Present and Future Value</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <link rel="stylesheet" href="DelayDiscount_Main.v1.Jul23.css">
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.Oct23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var testVersion;        // version identifier for this test
+    var choiceCount = 0;    // count of already made choices
+    var nTrials;            // number of total test + catch trials
+    var presentValue;       // value of immediate reward
+    var adjust;             // value adjustment after every response
+    var score = 0;          // accumulated score
+    var results = [];       // array to store trials details and responses
+    var outcomes = {};      // object containing outcome variables
+    var frameSequence = []; // object containing the sequence of frames and their properties
+    var frame;              // single frame object
+    var repeated = 0;   	// whether the current trial has been repeated
+    var type;               // URL parameter: test version [short, long]
+    var debug;              // URL parameter: output to console
+    var showresults;        // URL parameter: if they want to show results in a popup window
+    var autosave;           // URL parameter: if they want to save data in a file automatically
+    var filename;           // URL parameter: filename for data
+    var usage = "";         // URL parameter: show usage
+
+    // for test trials, [days by delay period, choice b delay text, trial ID stem]
+    // for catch trials, [current value, delay, correct response]
+    var trialTypes = {'two weeks': [14, 'two weeks', 'twoWeeks'],
+    				  'one month': [30.4375, 'one month', 'oneMonth'],
+    				  'six months': [182.625, 'six months', 'sixMonths'],
+                      'one year': [365, 'one year', 'oneYear'],
+                      'three years': [1095, 'three years', 'threeYears'],
+                      'five years': [1825, 'five years', 'fiveYears'],
+                      'ten years': [3650, 'ten years', 'tenYears'],
+                      'catch0': ['$5','5 minutes','b'], 'catch1': ['$2000','one month','a'],
+                      'catch2': ['$1000','one year','a'], 'catch3': ['no money','ten years','b']};
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        var isTimeout, choice, a, v, d, k, trialType, trialIdStem, catchAcc;
+
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+        
+         // is this a timeout trial?
+        isTimeout = tmbUI.status === "timeout";
+
+        // if not a timeout
+        if (!isTimeout)
+        {
+        	// retrieve which value they chose
+            if(tmbUI.status === 'keyup')
+            {
+                choice = tmbUI.response;
+            }
+            else if(tmbUI.response && getID(tmbUI.response).firstElementChild)
+            {
+                choice = getID(tmbUI.response).firstElementChild.id.slice(6).toLowerCase().trim();
+            }
+            //choice = tmbUI.response.slice(6).toLowerCase().trim();
+            else choice = "none";
+
+            // compute the discounting factor, assuming hyperbolic model
+            // k = [(a/v)-1]/d
+            // k => discounting factor
+            // a => future value ($1000)
+            // v => current value, computed as present value adjusted (CHECK THIS!!!)
+            // d => delay in days
+            if(frame.type.indexOf('catch') > -1)
+            {
+                // catch trial accuracy indicating correct or wrong response
+                catchAcc = (choice === trialTypes[frame.type][2] ? 1 : 0);
+            }
+            else
+            {
+                a = 1000;
+                v = (choice === 'a' ? presentValue - adjust / 2 :
+                                      presentValue + adjust / 2);
+                d = trialTypes[frame.type][0];
+                k = ((a / v) - 1) / d;
+            }
+        }
+        else
+        {
+        	choice = null;
+        }
+        
+        // format trialType and trialId for saving to results
+        trialType = frame.type.indexOf('catch') > -1 ? 'catch' : frame.type;
+        trialIdStem = trialType === 'catch' ? 'catch' : trialTypes[frame.type][2];
+
+        // save results
+        results.push(
+        {
+            trialId: trialIdStem + frame.typeNum, // trial identifier
+            trialType: trialType, // trial type (indicates delay, or catch)
+            typeNum: frame.typeNum, // trial index for each delay (1-6) or catch trial (1-4)
+            delayTime: trialType === 'catch' ? trialTypes[frame.type][1] : trialType, // trial delay time
+            delay_time_days: trialType === 'catch' ? null : trialTypes[frame.type][0], // delay time in days used for computing discounting factor, null for catch trials
+            response: choice, // chosen value (present => a, future => b, timeout => null)
+            presentAmount: presentValue, // value at present
+            currentK: typeof k !== 'undefined' ? k.round(8) : null, // discounting factor, computed for each non-catch trial
+            catchCorrect: typeof catchAcc !== 'undefined' ? catchAcc : null, // accuracy on catch trials, null for non-catch trials
+            rt: isTimeout ? null : tmbUI.rt, // response time
+            state: tmbUI.status, // state of the response handler
+            repeated: repeated, // whether this trial has a prior timeout
+            responseTimestamp: now() // time elapsed since test loaded
+        });
+        
+        // if we are debugging, log the results
+    	if(debug === 'true') logResults(results,'inc');
+
+        // if the input event returns a timeout,
+        // stop the sequence and advise the participant
+        if(isTimeout)
+        {
+            
+            // rewind the frame sequence by one frame,
+            // so that the same frame is displayed again
+            frameSequence.unshift(frame);
+            choiceCount--;
+            
+            // mark this timeout on retry
+            repeated = 1;
+
+            showAlert("You are taking too long to respond.<br><br>" +
+                      "Choose option [a] or [b].<br><br>",
+                      "Click here to retry",
+                      function()
+                      {
+                          showFrame("null");
+                          nextTrial();
+                      },
+                      '20pt');
+        }
+        else
+        {
+            // Prepare the next trial values:
+            // - halve the adjusting step
+            // - if current choice is present value, subtract step from current value
+            // - if current choice is future value, add step to current value
+            // Implements 1-up 1-down staircase with variable steps,
+            // homing in on the indifference point.
+            adjust /= 2;
+            if(choice === 'a') presentValue -= adjust;
+            else presentValue += adjust;
+
+            // resetting repeated variable when no timeout
+            repeated = 0;
+
+            showFrame("null");
+            setTimeout(function(){nextTrial();},500);
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame)
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                  "Click here for instructions",
+                                                  function ()
+                                                  {
+                                                      showFrame("null");
+                                                      nextTrial();
+                                                  },
+                                                  '20pt');
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                         "Click here to continue",
+                                                         function ()
+                                                         {
+                                                             showFrame("null");
+                                                             nextTrial();
+                                                         },
+                                                         '20pt');
+            // deal with catch and test frames
+            else
+            {
+                // increase the trial counter
+                choiceCount++;
+                getID("counter").innerHTML = "<b>" + choiceCount +
+                                             " of " + nTrials + "</b>";
+
+                // catch trial
+                if (frame.type.indexOf('catch') > -1)
+                {
+                    // cast string to Number ('$100,000.2' => 100000.2)
+                    presentValue = Number(trialTypes[frame.type][0].replace(/[^0-9\.-]+/g,""));
+
+                    // fill present value and delay spans
+                    getID('choiceA').innerHTML = '[a] ' + trialTypes[frame.type][0];
+                    getID('delay').innerHTML = '<em>'+trialTypes[frame.type][1]+'</em>';
+                }
+                // test trial
+                else
+                {
+                    // on first trial of every delay
+                    // reset present value and adjustment to their defaults
+                    if(frame.typeNum === 1)
+                    {
+                        presentValue = 500;
+                        adjust = 500;
+                    }
+
+                    getID('choiceA').innerHTML = '[a] $' + presentValue.round(0);
+
+                    if(frame.typeNum === 1)
+                        getID('delay').innerHTML = '<b><i>'+trialTypes[frame.type][1]+'</i></b>';
+                    else getID('delay').innerHTML = '<i>'+trialTypes[frame.type][1]+'</i>';
+                }
+
+                showFrame('counter','instructions','choice','choiceA','choiceB');
+                tmbUI.getInput();
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            //compute outcomes
+            var tmp0, tmp1, tmp2;
+
+            // remove timeout trials
+            tmp0 = results.filter(function( obj ) {return obj.state !== 'timeout';});
+
+            // score is time (months) it takes for value to halve
+            // computed as inverse of average of final Ks over all delays
+            tmp1 = tmp0.filter(function( obj ) {return obj.typeNum === 6;});
+            tmp2 = 1 / tmp1.pluck('currentK').average() / 30.4375;
+            outcomes.score = tmp2.round(3);
+            score = outcomes.score;
+
+            // accuracy score for catch trials
+            tmp1 = tmp0.filter(function( obj ) {return obj.trialType === 'catch';});
+            outcomes.catchScore = tmp1.pluck('catchCorrect').average();
+
+            // all RTs
+            tmp1 = tmp0.pluck('rt');
+            outcomes.meanRT = tmp1.average().round(2);
+            outcomes.medianRT = tmp1.median().round(2);
+            outcomes.sdRT = tmp1.sd().round(2);
+
+            // all final k's of non-catch trials, no timeouts
+            tmp1 = tmp0.filter(function( obj ) {return obj.trialType !== 'catch' & obj.typeNum === 6;});
+
+            // average of all final Ks, excluding catch trials, reported as ln(k)
+            outcomes.lnk = Math.log(tmp1.pluck('currentK').average()).round(4);
+
+            // two-weeks ln(k)
+            outcomes.twoWeeks_lnk =  Math.log(tmp1.filter(function( obj ) {return obj.trialType === 'two weeks';}).pluck('currentK')).round(4);
+
+            // one-month ln(k)
+            outcomes.oneMonth_lnk = Math.log(tmp1.filter(function( obj ) {return obj.trialType === 'one month';}).pluck('currentK')).round(4);
+
+            // 6-months ln(k)
+            if(type === 'long')
+            {
+                outcomes.sixMonths_lnk = Math.log(tmp1.filter(function( obj ) {return obj.trialType === 'six months';}).pluck('currentK')).round(4);
+            }
+
+            // one-year ln(k)
+            outcomes.oneYear_lnk = Math.log(tmp1.filter(function( obj ) {return obj.trialType === 'one year';}).pluck('currentK')).round(4);
+
+            // 3-years ln(k)
+            if(type === 'long')
+            {
+                outcomes.threeYears_lnk = Math.log(tmp1.filter(function( obj ) {return obj.trialType === 'three years';}).pluck('currentK')).round(4);
+            }
+
+            // 5-years ln(k)
+            if(type === 'long')
+            {
+                outcomes.fiveYears_lnk = Math.log(tmp1.filter(function( obj ) {return obj.trialType === 'five years';}).pluck('currentK')).round(4);
+            }
+
+            // 10-years ln(k)
+            outcomes.tenYears_lnk = Math.log(tmp1.filter(function( obj ) {return obj.trialType === 'ten years';}).pluck('currentK')).round(4);
+            
+            // qc flag for fast median RT
+            outcomes.flag_medianRT = outcomes.medianRT < 500 ? 1 : 0;
+            
+            // qc flag for catch trial performance
+            outcomes.flag_catchTrials = outcomes.catchScore < .75 ? 1 : 0;
+            
+            // overall qc flag
+            outcomes.flag_any = outcomes.flag_medianRT + outcomes.flag_catchTrials > 0 ? 1 : 0;
+            
+            // response device
+            tmp2 = tmp0[0].state;
+            tmp2 = /key/i.test(tmp2) ? 'keyboard' :
+                   /touch/i.test(tmp2) ? 'touch' :
+                   /mouse/i.test(tmp2) ? 'mouse' :
+                   /pen/i.test(tmp2) ? 'pen' :
+                   'unknown';
+            outcomes.responseDevice = tmp2;
+
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // if we save locally, append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "DelayDiscount.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                showAlert("Test complete!",
+                          "",
+                          function ()
+                          {
+                          },
+                          '20pt');
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage, i;
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>Present and Future Value</h2>" +
+                      "<img src='present-future.png' alt='Title image'><br><br>"),
+            "instructions": [("On each question, pretend you are<br>choosing between two options:<br><br>" +
+                              "<b>[a] getting a smaller amount of<br>money right now</b><br><br>" +
+                              "or<br><br>" +
+                              "<b>[b] getting $1000 later, after waiting<br>" +
+                              "some period of time.</b><br><br>"),
+                              ("On each question, the amount of money<br>and/or the waiting period will change.<br><br>" + 
+							   "There are no right or wrong answers.<br>Please just imagine each scenario and<br>report your preference.<br><br>" +
+							   "Let’s start.<br><br>")
+                              ]
+        };
+
+        // type of trial
+        var frameType = ['begin','message', 'message',
+                         'catch0',
+                         'two weeks','two weeks','two weeks',
+                         'two weeks','two weeks','two weeks',
+                         'one month','one month','one month',
+                         'one month','one month','one month',
+                         'catch1'];
+        if(type === 'long')
+        {
+            frameType = frameType.concat(['six months','six months','six months',
+                                          'six months','six months','six months']);
+        }
+        frameType = frameType.concat(['one year','one year','one year',
+                                      'one year','one year','one year',
+                                      'catch2']);
+        if(type === 'long')
+        {
+            frameType = frameType.concat(['three years','three years','three years',
+                                          'three years','three years','three years',
+                                          'five years','five years','five years',
+                                          'five years','five years','five years']);
+        }
+        frameType = frameType.concat(['ten years','ten years','ten years',
+                                      'ten years','ten years','ten years',
+                                      'catch3']);
+
+        // order within type (catch trials => 1-4, test trials => 1-6
+        var frameTypenum = ['','','',
+                            1,
+                            1,2,3,4,5,6,
+                            1,2,3,4,5,6,
+                            2];
+        if(type === 'long')
+        {
+            frameTypenum = frameTypenum.concat([1,2,3,4,5,6]);
+        }
+        frameTypenum = frameTypenum.concat([1,2,3,4,5,6,3]);
+        if(type === 'long')
+        {
+            frameTypenum = frameTypenum.concat([1,2,3,4,5,6,1,2,3,4,5,6]);
+        }
+        frameTypenum = frameTypenum.concat([1,2,3,4,5,6,4]);
+
+        // message to display
+        var frameMessage = [testMessage.begin,testMessage.instructions[0],testMessage.instructions[1],
+                            '','','','','','','','','','','','','',''];
+        if(type === 'long')
+        {
+            frameMessage = frameMessage.concat(['','','','','','']);
+        }
+        frameMessage = frameMessage.concat(['','','','','','','']);
+        if(type === 'long')
+        {
+            frameMessage = frameMessage.concat(['','','','','','',
+                                                '','','','','','']);
+        }
+        frameMessage = frameMessage.concat(['','','','','','','']);
+
+        // push all components into the frames chain
+        for(i = 0; i < frameType.length; i++)
+        {
+            frameSequence.push(
+                    {
+                        type: frameType[i],
+                        typeNum: frameTypenum[i],
+                        message: frameMessage[i]
+                    });
+        }
+
+        // compute number of test trials
+        nTrials = frameSequence.filter(function( obj )
+                  {
+                    return obj.type !== 'begin' && obj.type !== 'message';
+                  }).length;
+
+        // start the trial sequence
+        nextTrial();
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+        
+         // add appropriate meta viewport for scaling
+        setBodyScale(600,500);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>type=short</i> -- the version of the test [short, long]<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+                document.getElementById('helpSpan').style.textAlign = 'left';
+                document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // choose short or long version
+        type = getUrlParameters("type", "", true);
+        if(!type || (type !== 'short' && type !== 'long')) type = 'short';
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // determine events to listen to
+        if(hasTouch || hasPointer) tmbUI.UIevents = ['taps','clicks','keys'];
+        else
+        {
+            tmbUI.UIevents = ['clicks','keys'];
+        }
+        tmbUI.UIkeys = [keyToCode('a'),keyToCode('b')];
+        tmbUI.UIelements = ['valueNow','valueFuture'];
+        tmbUI.highlight = "responseHighlight";
+
+        // set response timeout to 15 seconds
+        tmbUI.timeout = 15000;
+
+        // disable spurious user interactions
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        imagePreLoad(['present-future.png'],{progress: false, callBack: setFrameSequence});
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <!-- this DIV shows the count of value pairs already seen -->
+    <div id="counter"></div>
+
+    <!-- this DIV shows the choice values -->
+    <div id="choice">
+
+        <span id="question">
+            I'd rather receive....
+        </span>
+
+        <br><br>
+
+        <span class="choiceOpt" id="valueNow">
+            <span id="choiceA"></span> now
+        </span>
+
+        <br>
+
+        <span class="choiceOpt" id="valueFuture">
+            <span id="choiceB">[b] $1000</span> in <span id="delay"></span>
+        </span>
+
+    </div>
+
+    <!-- this DIV shows instructions -->
+    <div id="instructions">
+        <span>Choose option [a] or [b] above</span>
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it -->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+
+</html>

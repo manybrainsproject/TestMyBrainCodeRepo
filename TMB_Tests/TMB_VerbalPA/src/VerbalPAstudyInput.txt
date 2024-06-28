@@ -1,0 +1,30 @@
+* This is an input file to the STUDY component of the Verbal Pair Associates Test
+* Each line must contain a probe-target pair of words
+* The word separator is 'whitespace'
+* Lines beginning with '*' are ignored
+* PROBE TARGET
+officer kettle
+animal glass
+student couch
+cocktail cement
+fruit elbow
+horse choir
+piano walrus
+garlic bubble
+mirror wallet
+guest bread
+beverage laundry
+candle umbrella
+beach mustard
+nurse radio
+organ lettuce
+flame mother
+rabbit weapon
+shark floor
+spoon disease
+tourist newspaper
+soccer dentist
+torch zipper
+column tulip
+blonde ocean
+woman potato

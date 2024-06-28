@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Visual Paired Associates Memory">
+    <meta name="copyright" content="2024 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB VisualPA recall">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2024 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+      VisualPAtest.html?help
+
+     Notes:
+
+      This is the recall component of the Visual Paired Associates Test.
+      The participant is asked to choose, among 5 alternatives, the image
+      associated with the probe seen at study time.
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Visual Paired Associates - Test</title>
+
+<!-- End of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <style>
+
+        *
+        {
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        *::after, *::before
+        {
+            box-sizing: border-box;
+        }
+
+        html
+		{
+			width: 100vw;
+			height: 100vh;
+		}
+
+        body
+        {
+            width: 100vw;
+            height: 100vh;
+            margin: auto;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 13pt;
+            text-align: center;
+        }
+
+        #counter
+        {
+            height: 50px;
+            width: 200px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -280px;
+            margin-left: -100px;
+            text-align: center;
+            font-size: 20pt;
+            display: none;
+        }
+
+        .image
+        {
+            border: 5px solid transparent;
+        }
+
+        #probe
+        {
+            border-color: #ff0000;
+        }
+
+        #choice
+        {
+            height: 540px;
+            width: 810px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -250px;
+            margin-left: -405px;
+            display: none;
+        }
+
+        .button
+        {
+            border: 2px solid #f1c40f;
+            border-radius: 1em;
+            background: transparent;
+            color: #000000;
+            box-shadow: 0 5px 15px 5px grey
+        }
+
+        .button:active
+        {
+            box-shadow: 0 5px 15px 1px lightgrey
+        }
+
+        .button:focus
+        {
+            outline: none
+        }
+        
+        .responseHighlight
+        {
+            border: 5px solid red;
+        }
+
+    </style>
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.May23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var testVersion;        // version identifier for this test
+    var images = [];        // array of all images
+    var imagePairs = [];    // array of probe-target image pairs
+    var pairsCount = 0;     // count of already seen image pairs
+    var ISI = 500;          // inter-stimulus interval
+    var correct;            // correct=1, wrong=0
+    var score = 0;          // accumulated score
+    var results = [];       // array to store trials details and responses
+    var outcomes = {};      // object containing outcome variables
+    var frameSequence = []; // object containing the sequence of frames and their properties
+    var frame;              // single frame object
+    var inputFile;          // URL parameter: file containing probe-target image pairs
+    var debug;              // URL parameter: output to console
+    var showresults;        // URL parameter: if they want to show results in a popup window
+    var autosave;           // URL parameter: if they want to save data in a file automatically
+    var filename;           // filename for data
+    var usage = "";         // URL parameter: show usage
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        var choice;
+
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+
+        // retrieve which image they chose
+        if(tmbUI.response)
+        {
+            choice = getID(tmbUI.response).getAttribute("src");
+        }
+        else choice = "none";
+
+        // is the response correct?
+        correct = (choice === frame.target) ? 1 : 0;
+
+        results.push(
+        {
+            type: frame.type, // one of practice or test
+            probe: frame.probe, // probe image
+            target: frame.target, // target image
+            response: choice, // the chosen image
+            correct: correct, // boolean correct
+            rt: tmbUI.rt, // response time
+            state: tmbUI.status // state of the response handler
+        });
+
+        // if we are debugging, log the results
+        if(debug === 'true') logResults(results,'inc');
+
+        if(frame.type === "practice")
+        {
+            // on practice trials, if the input event returns a timeout
+            // or the response is not correct,
+            // stop the sequence and advise the participant
+            if(tmbUI.status === "timeout" || !correct)
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+
+                showAlert(("The image pair you learned was:<br><br>" +
+                           "<img src='" + frame.probe +"'> " +
+                           "<img src='" + frame.target +"'><br>" +
+                           "<br>You should click the image on the right.<br><br>"),
+                           "Click here to retry",
+                           function()
+                           {
+                               showFrame("null");
+                               nextTrial();
+                           },
+                           '20pt');
+            }
+            else
+            {
+                showFrame("null");
+                nextTrial();
+            }
+        }
+        else if(frame.type === "test")
+        {
+            // if the input event returns a timeout,
+            // stop the sequence and advise the participant
+            if(tmbUI.status === "timeout")
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+                pairsCount--;
+
+                showAlert("You are taking too long to respond.<br>" +
+                          "You should click the image that goes with this:<br><br>"+
+                          "<img src='" + frame.probe +"' style='border: 5px solid red;'><br><br>",
+                          "Click here to retry",
+                          function()
+                          {
+                              showFrame("null");
+                              nextTrial();
+                          },
+                          '20pt');
+            }
+            else
+            {
+                showFrame("null");
+                nextTrial();
+            }
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame)
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                  "Click here for instructions",
+                                                  function ()
+                                                  {
+                                                      showFrame("null");
+                                                      nextTrial();
+                                                  },
+                                                  '20pt');
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                         "Click here to continue",
+                                                         function ()
+                                                         {
+                                                             showFrame("null");
+                                                             nextTrial();
+                                                         },
+                                                         '20pt');
+            // deal with practice and test frames
+            else
+            {
+                chainTimeouts(
+                function()
+                {
+                    if(frame.type === "test")
+                    {
+                        pairsCount++;
+                        getID("counter").innerHTML = "<b>"+pairsCount + " of " +
+                                                     imagePairs.length + "</b>";
+                    }
+                    else
+                    {
+                        getID("counter").innerHTML = "<b>Practice</b>";
+                    }
+                    showFrame("counter");
+                },
+                ISI,
+                function()
+                {
+                	getID("probe").decoding = "sync";
+                    getID("choice1").decoding = "sync";
+                    getID("choice2").decoding = "sync";
+                    getID("choice3").decoding = "sync";
+                    getID("choice4").decoding = "sync";
+                    getID("choice5").decoding = "sync";
+                    
+                    getID("probe").src = frame.probe;
+                    getID("choice1").src = frame.choice1;
+                    getID("choice2").src = frame.choice2;
+                    getID("choice3").src = frame.choice3;
+                    getID("choice4").src = frame.choice4;
+                    getID("choice5").src = frame.choice5;
+                    showFrame("counter","choice");
+                    tmbUI.getInput();
+                });
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            //compute outcomes
+            var tmp1, tmp2, tmp3;
+
+            // all test trials (excluding practice and timeouts)
+            tmp1 = results.filter(function( obj ) {return obj.type !== 'practice' &&
+                                                          obj.state !== 'timeout';});
+
+            // all correct rts
+            tmp2 = tmp1.filter(function( obj )
+                               {return obj.correct === 1;}).pluck("rt");
+
+            // response device
+            tmp3 = tmp1[0].state;
+            tmp3 = /key/i.test(tmp3) ? 'keyboard' :
+                   /touch/i.test(tmp3) ? 'touch' :
+                   /mouse/i.test(tmp3) ? 'mouse' :
+                   /pen/i.test(tmp3) ? 'pen' :
+                   'unknown';
+
+            score = outcomes.score = tmp2.length;
+            outcomes.accuracy = tmp2.length / tmp1.length;
+            outcomes.meanRTc = tmp2.length ? tmp2.average().round(2) : 0;
+            outcomes.medianRTc = tmp2.length ? tmp2.median().round(2) : 0;
+            outcomes.sdRTc = tmp2.length ? tmp2.sd().round(2) : 0;
+            outcomes.responseDevice = tmp3;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "VisualPAresults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                tmbSubmitToServer(results,score,outcomes);
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage, i;
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>TMB Visual Paired Associates Memory - Test</h2>" +
+                      "<img src='images/example1.jpg'> " +
+                      "<img src='images/example2.jpg'><br><br>"),
+            "instructions": [("<h3>Instructions:</h3>" +
+                              "<img src='images/example1.jpg'> " +
+                              "<img src='images/example2.jpg'><br><br>" +
+                              "Let's test your memory for the images<br>" +
+                              "you learned a few minutes ago.<br><br>"),
+                             ("<h3>Instructions:</h3>" +
+                              "<img src='images/example1.jpg' style='border: 5px solid red;'><br>" +
+                              "For practice, click the image<br>" +
+                              "that goes together with this.<br>" +
+                              "(hint: it's a bridge!)<br><br>"),
+                             ("Excellent!<br>" +
+                              "You will be asked to recall all " +
+                              imagePairs.length + " pairs.<br>" +
+                              "Let's start!<br><br>")]
+        };
+
+        // type of frame to display
+        var frameType = ["begin","message","message","practice","message"];
+
+        // message to display
+        var frameMessage = [testMessage.begin,
+                            testMessage.instructions[0],
+                            testMessage.instructions[1],
+                            "",
+                            testMessage.instructions[2]];
+
+        // images to display
+        var frameProbe = ["","","","images/example1.jpg",""];
+        var frameTarget = ["","","","images/example2.jpg",""];
+        var frameChoice1 = ["","","","images/example2.jpg",""];
+        var frameChoice2 = ["","","","images/example3.jpg",""];
+        var frameChoice3 = ["","","","images/example4.jpg",""];
+        var frameChoice4 = ["","","","images/example5.jpg",""];
+        var frameChoice5 = ["","","","images/example6.jpg",""];
+
+        // push all components into the frames chain
+        for(i = 0; i < frameType.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: frameType[i],
+                message: frameMessage[i],
+                probe: frameProbe[i],
+                target: frameTarget[i],
+                choice1: frameChoice1[i],
+                choice2: frameChoice2[i],
+                choice3: frameChoice3[i],
+                choice4: frameChoice4[i],
+                choice5: frameChoice5[i]
+            });
+        }
+
+        for(i = 0; i < imagePairs.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: "test",
+                message: "",
+                probe: 'images/' + imagePairs[i].probe,
+                target: 'images/' + imagePairs[i].target,
+                choice1: 'images/' + imagePairs[i].choice1,
+                choice2: 'images/' + imagePairs[i].choice2,
+                choice3: 'images/' + imagePairs[i].choice3,
+                choice4: 'images/' + imagePairs[i].choice4,
+                choice5: 'images/' + imagePairs[i].choice5
+            });
+        }
+
+        // start the trial sequence
+        nextTrial();
+    }
+
+    // this is the input file's parser: it builds a JSON object
+    // from the instructions and material in the file
+    function parseFile(text)
+    {
+        // parse the input file
+        if(text)
+        {
+            var lines, words = [], errors = 0;
+
+            // Parse the file's text into lines by splitting on 'newline'.
+            // (do not use regexp, e.g. /\r?\n/, because ie8 throws up)
+            lines = text.split("\n");
+
+            // parse each line into words by splitting on 'whitespace'
+            for (var i = 0; i < lines.length; i++)
+            {
+                // first check if this line is a comment (starts with '*'?)
+                if(lines[i].charAt(0) === "*") continue;
+
+                // split on 'whitespace'
+                words = lines[i].split(" ");
+
+                // sanitize the words, so there are no linefeeds at the end
+                words = words.map(function(s) { return s.trim() });
+
+                // save probe, target and choice words, or stop and report an error
+                if(words.length === 7) imagePairs.push({probe: words[0],
+                                                      target: words[1],
+                                                      choice1: words[2],
+                                                      choice2: words[3],
+                                                      choice3: words[4],
+                                                      choice4: words[5],
+                                                      choice5: words[6]});
+                else
+                {
+                    errors++;
+                    break;
+                }
+            }
+
+            if(errors)
+            {
+                showAlert("parseFile: Incorrect formatting of line " + (i+1) + ".<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else if(imagePairs.length === 0)
+            {
+                showAlert("parseFile: Error parsing input file's content.<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else
+            {
+                images = imagePairs.pluck('probe').concat(imagePairs.pluck('target'));
+                images = images.concat(imagePairs.pluck('choice1'))
+                               .concat(imagePairs.pluck('choice2'));
+                images = images.concat(imagePairs.pluck('choice3'))
+                               .concat(imagePairs.pluck('choice4'));
+                images = images.concat(imagePairs.pluck('choice5'));
+                images = images.concat(['example1.jpg','example2.jpg',
+                                        'example3.jpg','example4.jpg',
+                                        'example5.jpg','example6.jpg']);
+                images = images.map(function(a){return('images/' + a)});
+                images = images.unique();
+                imagePreLoad(images,{pipeline: false, callBack: setFrameSequence});
+			}
+		}
+        else showAlert("ajaxRequest: Error reading input file.<br><br>",
+                       "",
+                       null,
+                       '20pt');
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+
+        // add appropriate meta viewport for scaling
+        setBodyScale(830,650);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>input=testInput.txt</i> -- image pairs input file" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+                document.getElementById('helpSpan').style.textAlign = 'left';
+                document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // specify the input file
+        inputFile = getUrlParameters("input", "", true);
+        if(!inputFile) inputFile = "VisualPAtestInput.txt";
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // determine events to listen to
+        if(hasTouch || hasPointer) tmbUI.UIevents = ['taps','clicks'];
+        else tmbUI.UIevents = ['clicks'];
+        tmbUI.UIelements = ['choice1','choice2','choice3','choice4','choice5'];
+        tmbUI.highlight = "responseHighlight";
+
+        // disable spurious user interaction
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        // read the input file and call the parser
+        ajaxRequest({url: inputFile,
+                     async: true,
+                     callback: parseFile});
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <!-- this DIV shows the count of image pairs already seen -->
+    <div id="counter"></div>
+
+    <!-- this DIV shows the images -->
+    <div id="choice">
+        <img id="probe" class="image pull-left" src="" alt="probe">
+        <img id="choice1" class="image pull-left" src="" alt="choice1">
+        <img id="choice2" class="image pull-left" src="" alt="choice2">
+        <img id="choice3" class="image pull-left" src="" alt="choice3">
+        <img id="choice4" class="image pull-left" src="" alt="choice4">
+        <img id="choice5" class="image pull-left" src="" alt="choice5">
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it -->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

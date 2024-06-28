@@ -1,0 +1,30 @@
+* This is an input file to the STUDY component of the Verbal Paired Associates Test
+* Each line must contain a probe-target pair of words
+* The word separator is whitespace
+* Lines beginning with * are ignored
+* PROBE TARGET
+insect brandy
+children drink
+burner diamond
+bucket picture
+house pillow
+truck lemon
+cattle garden
+grass straw
+morning skirt
+poster flower
+library slide
+court shore
+mouse money
+essay rocket
+mixer grave
+balloon gravy
+maple cheese
+garbage harbor
+battle capsule
+pedal college
+guard triangle
+hospital chalk
+liquid policeman
+human mountain
+tennis chipmunk

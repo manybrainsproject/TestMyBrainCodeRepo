@@ -1,0 +1,177 @@
+/*
+    Stylesheet for TMB Choice Reactio Time.
+
+	Copyright 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+    Last updated: 03.20.2023
+    Author: Paolo Martini
+    Version: ChoiceRT.v1.Mar23
+
+*/
+
+*
+{
+    border-radius: 0;
+    box-sizing: border-box;
+}
+
+*::after, *::before
+{
+    box-sizing: border-box;
+}
+
+html
+{
+    width: 100vw;
+    height: 100vh;
+}
+
+body
+{
+    width: 100vw;
+    height: 100vh;
+    margin: auto;
+    background: #ffffff;
+    color: #000000;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 13pt;
+    text-align: center;
+}
+
+.stim
+{
+    width: 100px;
+    height: 100px;
+    font-size:100px;
+    line-height: 1;
+    clear: both;
+    border: 1px solid black;
+    text-align:center;
+    font-family: monospace;
+}
+
+.button
+{
+    border: 2px solid #f1c40f;
+    border-radius: 1em;
+    background: transparent;
+    color: #000000;
+    box-shadow: 0 5px 15px 5px grey
+}
+
+.button:active
+{
+    box-shadow: 0 5px 15px 1px lightgrey
+}
+
+.button:focus
+{
+    outline: none
+}
+
+.keyButton
+{
+    width: 100px;
+    height: 100px;
+    font-size:40px;
+    line-height:2em;
+    text-align:center;
+    cursor: none;
+    background: lightgrey;
+    border: 2px solid #727272;
+}
+
+.responseButton
+{
+    -webkit-appearance: none;
+    background: darkgrey;
+    font-size: 54px;
+    line-height: 108px;
+    width: 100px;
+    border: 5px solid lightgray;
+    border-right: 5px solid #727272;
+    border-bottom: 5px solid #727272;
+    padding: 0;
+    margin-top: -9px;
+    color: #ffffff;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/*.responseButton:active
+{
+    border: 5px solid lightgray;
+    border-left: 5px solid #727272;
+    border-top: 5px solid #727272;
+}*/
+
+.responseButton:focus
+{
+    outline: none
+}
+
+#Top
+{
+    background: #ffff00;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-top: -250px;
+    margin-left: -50px;
+    display: none;
+}
+
+#Middle
+{
+    background: #00ffff;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-top: -50px;
+    margin-left: -50px;
+    display: none;
+}
+
+#Bottom
+{
+    background: #ffff00;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-top: 150px;
+    margin-left: -50px;
+    display: none;
+}
+
+#left
+{
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 50%;
+    top: 50%;
+    margin-top: -50px;
+    margin-left: -250px;
+    display: none;
+}
+
+#right
+{
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 50%;
+    top: 50%;
+    margin-top: -50px;
+    margin-left: 150px;
+    display: none;
+}
+
+.responseHighlight
+{
+	border: 5px solid red;
+}

@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Choice Reaction Time">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test, choice reaction time">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=contain">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB CRT">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+       ChoiceRT.html?help
+
+     For reference see:
+
+       Maljkovic, V., & Nakayama, K. (1994). Priming of pop-out: I. Role of features.
+        Memory & Cognition, 22(6), 657–672.
+
+       Martini, P. (2010). System identification in Priming of Pop-Out.
+        Vision Research, 50(21), 2110–2115.
+
+     Notes:
+
+      This is a skeletal pop-out search task with a set size of 3 items
+      (coloured squares). The target item is a color singleton and contains an
+      arrow that indicates the direction of the response. The task of the
+      participant is to find the target and respond according to the direction
+      of the arrow that it contains. Target color, position and arrow direction
+      are chosen randomly and independently on every trial. The intertrial
+      interval is exponentially distributed to avoid response preparation effects.
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Fast Choices</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <link rel="stylesheet" nonce="***tmb_inline_tag_nonce***" href="ChoiceRT.v1.May23.css">
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="chooseInput.v1.Apr23.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.May23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript" nonce="***tmb_inline_tag_nonce***">
+
+    var testVersion;                // version identifier for this test
+    var chosenInput;                // input type (taps or keys)
+    var rightKey = 'm';             // keyboard key for right response
+    var leftKey = 'x';              // keyboard key for left response
+    var images = [];                // images to load
+    var chain;                      // chain of timeouts for stimulus presentation
+    var score = 0;                  // score variable
+    var repeated = 0;   			// whether the current trial has been repeated
+    var results = [];               // array to store trials details and responses
+    var outcomes = {};              // object containing outcome variables
+    var frameSequence = [];         // object containing the sequence of frames and their properties
+    var frame;                      // single frame object
+    var seed;                       // URL parameter: random generator seed
+    var ntrials;                    // URL parameter: number of test trials
+    var nopractice;                 // URL parameter: no practice trials
+    var useChooseInput;				// URL parameter: whether to use chooseInput
+    var debug;                      // URL parameter: output to console
+    var demo;                       // URL parameter: run in demo mode
+    var showresults;                // URL parameter: if they want to show results in a popup window
+    var autosave;                   // URL parameter: if they want to save data in a file automatically
+    var filename;                   // URL parameter: filename for data
+    var usage = "";                 // URL parameter: show usage
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        var right, left, correct, errorMessage;
+        
+        // did a timeout occur?
+        var isTimeout =  tmbUI.status === "timeout";
+
+        // clear the stimulus chain, in case it's still running
+        clearChainTimeouts(chain);
+
+        // is the response correct?
+        right = ~frame.tResponse.indexOf('right');
+        left = ~frame.tResponse.indexOf('left');
+        correct = ((tmbUI.response === (chosenInput === 'taps' ? 'rightResponse' : rightKey) && right) ||
+                   (tmbUI.response === (chosenInput === 'taps' ? 'leftResponse' : leftKey) && left)) ? 1 : 0;
+
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+
+        // store the results
+        results.push(
+        {
+            type: frame.type, // one of practice or test
+            foreperiod: frame.delay, // foreperiod (ms)
+            color: frame.tColor, // target color ['yellow','blue']
+            position: frame.tPosition, // target position ['top','middle','bottom']
+            targetDirection: frame.tResponse, // target response ['left','right']
+            correct: isTimeout ? null : correct, // boolean correct
+            rt: isTimeout ? null : tmbUI.rt, // delay b/w onset and response (ms)
+            responseTimestamp: now(), // response timestamp, ms since start of test
+            dwell: isTimeout ? null : tmbUI.dwell, // keyup - keydown (ms)
+            repeated: repeated, // whether this trial has a prior timeout
+            state: tmbUI.status // state of the response handler
+        });
+
+        // if we are debugging, log the results
+        if(debug === 'true') logResults(results,'inc');
+
+        // deal with errors during practice by repeating instructions
+        // and repeating the trial
+        if(~frame.type.indexOf('practice') && !correct)
+        {
+        	// set repeated equal to 1 to mark practice repeat
+        	repeated = 1;
+        	
+            errorMessage = "The odd-color square was <b>" + frame.tColor + "</b>" +
+                           (right ? ("<br>and the arrow was pointing <b>right</b>:<br>" +
+                                     (chosenInput === 'taps' ? ("you should have clicked<br>" +
+                                                                "the <b>right</b> gray button.<br><br>")
+                                                             : ("you should have pressed<br>" +
+                                                                "<b>'" + rightKey +
+                                                                "'</b> on the <b>KEYBOARD</b>.<br><br>")))
+                                  : ("<br>and the arrow was pointing <b>left</b>:<br>" +
+                                     (chosenInput === 'taps' ? ("you should have clicked<br>" +
+                                                                "the <b>left</b> gray button.<br><br>")
+                                                             : ("you should have pressed<br>" +
+                                                                "<b>'" + leftKey +
+                                                                "'</b> on the <b>KEYBOARD</b>.<br><br>"))));
+            showAlert(errorMessage,
+                      (chosenInput === 'taps' ? "Click here to retry" : ''),
+                      function()
+                      {
+                        hideCursor("document.body");
+                        frameSequence.unshift(frame);
+                        showFrame("left","right");
+                        setTimeout(function(){nextTrial();},1000);
+                      },
+                      '20pt',
+                  	  null,
+				  	  (chosenInput === 'taps' ? null : 'Press the SPACEBAR to retry'));
+        }
+        // if the input event returns a timeout,
+        // stop the sequence and advise the participant
+        else if(isTimeout)
+        {
+            // rewind the frame sequence by one frame,
+            // so that the same frame is displayed again
+            frameSequence.unshift(frame);
+            
+            // set repeated variable to mark repeat
+            repeated = 1;
+
+            showAlert("Please respond as quickly as you can.<br><br>" +
+                      (chosenInput === 'taps' ? "Press the left or right gray button,<br>"
+                                              : ("Press '"+leftKey+"' or '" +rightKey +
+                                                 "' on the KEYBOARD,<br>")) +
+                      "as indicated by the arrow<br>" +
+                      "in the odd-color square.<br><br>",
+                      (chosenInput === 'taps' ? "Click here to retry" : ''),
+                      function()
+                      {
+                          hideCursor("document.body");
+                          showFrame("left","right");
+                          setTimeout(function(){nextTrial();},1000);
+                      },
+                      '20pt',
+					  null,
+					  (chosenInput === 'taps' ? null : 'Press the SPACEBAR to retry'));
+        }
+        // else all is good, advance to the next trial
+        else
+        {
+        	// set repeated variable to 0, as trial was successfully completed
+        	repeated = 0;
+            nextTrial();
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if(frame)
+        {
+            // check if it's the startup frame
+            if(frame.type === "begin") showAlert(frame.message,
+                                                 (chosenInput === 'taps' ? "Click here for instructions" : ''),
+                                                 function() {nextTrial();},
+                                                 '20pt',
+												 null,
+												 (chosenInput === 'taps' ? null : 'Press the SPACEBAR for instructions'));
+
+            // if it's a message frame, show it
+            else if(frame.type === "message") showAlert(frame.message,
+                                                        (chosenInput === 'taps' ? "Click here to continue" : ''),
+                                                        function ()
+                                                        {
+                                                            hideCursor("document.body");
+                                                            showFrame("null");
+                                                            nextTrial();
+                                                        },
+                                                        '20pt',
+														null,
+														(chosenInput === 'taps' ? null : 'Press the SPACEBAR to continue'));
+            // else show the boxes
+            else
+            {
+                // chain the stimulus presentation
+                chain = chainTimeouts(function()
+                                      {
+                                          requestAnimationFrame(function()
+                                          {
+                                              hideCursor("document.body");
+                                              showFrame("left","right");
+
+                                              getID("Top").style.backgroundColor = frame.colors[0];
+                                              getID("Top").innerHTML = frame.arrows[0];
+                                              getID("Middle").style.backgroundColor = frame.colors[1];
+                                              getID("Middle").innerHTML = frame.arrows[1];
+                                              getID("Bottom").style.backgroundColor = frame.colors[2];
+                                              getID("Bottom").innerHTML = frame.arrows[2];
+                                          })
+                                      },
+                                      frame.delay,
+                                      function()
+                                      {
+                                          requestAnimationFrame(function()
+                                          {
+                                              showFrame("left", "right", "Top", "Middle", "Bottom");
+                                              tmbUI.getInput();
+                                          });
+                                      });
+            }
+        }
+        // else if the sequence is empty, we are done!
+        else
+        {
+            showCursor("document.body");
+
+            // all test trials (excluding practice and timeouts)
+            var tmp1 = results.filter(function( obj )
+            {
+                return obj.type !== 'practice' &&
+                       obj.state !== 'timeout';
+            });
+
+            // all correct rts
+            var tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+
+            // response device
+            var tmp3 = tmp1[0].state;
+            tmp3 = /key/i.test(tmp3) ? 'keyboard' :
+                   /touch/i.test(tmp3) ? 'touch' :
+                   /mouse/i.test(tmp3) ? 'mouse' :
+                   /pen/i.test(tmp3) ? 'pen' :
+                   'unknown';
+
+            if (tmp2.length)
+            {
+                // score is 10000/avgRT, capped at 100 for avgRT<=100ms
+                score = tmp2.average();
+                score = score < 100 ? 100 : 10000 / score;
+                score = score.round(2);
+            }
+            else score = 0;
+            outcomes.score = score;
+
+            outcomes.accuracy = tmp2.length / tmp1.length;
+            outcomes.meanRTc = tmp2.length ? tmp2.average().round(2) : null;
+            outcomes.medianRTc = tmp2.length ? tmp2.median().round(2) : null;
+            outcomes.sdRTc = tmp2.length > 1 ? tmp2.sd().round(2) : null;
+            outcomes.flag_accuracy = outcomes.accuracy < .6 ? 1 : 0;
+            outcomes.flag_medianRTc = outcomes.medianRTc >= 350 ? 0 : 1;
+            outcomes.flag_any = outcomes.flag_accuracy + 
+            					outcomes.flag_medianRTc > 0 ? 1 : 0;
+            outcomes.responseDevice = tmp3;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if (debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if (showresults === "true" || autosave === 'true' || filename)
+            {
+                // if we save locally, append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "The maximum score is 100.<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "CRTresults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                showAlert("Test complete!",
+                          "",
+                          function (){},
+                          '20pt');
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence ()
+    {
+        var TestMessage;
+        var colCode = {yellow: "#ffff00", blue: "#00ffff"};
+        var posCode = ["Top", "Middle", "Bottom"];
+        var respCode = {left: "<", right: ">"};
+        var temp = [];
+
+        // messages
+        TestMessage =
+        {
+            "begin": ("<h2>Fast Choices</h2>" +
+                      "<img src="+images[0]+" alt='Title'><br><br>"),
+            "instructions": [("<h3>Instructions</h3>" +
+                              "<img src="+images[0]+" alt='Instructions'><br>" +
+                              "Look at the 3 colored squares.<br><br>"),
+                             ("<h3>Instructions</h3>" +
+                             "<img src="+images[0]+" alt='Instructions'><br>" +
+                              "Two squares are the same color,<br>" +
+                              "one is different (ODD-COLOR).<br><br>"),
+                             ("<h3>Instructions</h3>" +
+                              "<img src="+images[0]+" alt='Instructions'><br>" +
+                              "Now look at the ARROW<br>" +
+                              "inside the ODD-COLOR.<br><br>"),
+                             ("<h3>Instructions</h3>" +
+                              "<img src="+images[1]+" alt='Instructions'><br>" +
+                              "When the odd-color arrow points <b>right</b>,<br>" +
+                              (chosenInput === 'taps' ? "tap the <b>right</b> gray button<br>"
+                                                      : "press <b>'m'</b> on the <b>KEYBOARD</b><br>") +
+                              "with your <b>right</b> hand.<br><br>"),
+                             ("<h3>Instructions</h3>" +
+                              "<img src="+images[3]+" alt='Instructions'><br>" +
+                              "When the odd-color arrow points <b>left</b>,<br>" +
+                              (chosenInput === 'taps' ? "tap the <b>left</b> gray button<br>"
+                                                      : "press <b>'x'</b> on the <b>KEYBOARD</b><br>") +
+                              "with your <b>left</b> hand.<br><br>")
+                            ],
+            "practice": [("<h3>Instructions</h3>" +
+                          "<img src="+images[2]+" alt='Instructions'><br>" +
+                          "<br>Let's do some practice.<br><br>"),
+                         ("Excellent!<br>" +
+                          "You have completed the practice.<br><br>" +
+                          "Now let's do more.<br><br>")
+                        ],
+            "test":  "Remember:<br><br>" +
+                     (chosenInput === 'taps' ? "tap the gray button<br>"
+                                             : "press the key on the <b>KEYBOARD</b><br>") +
+                     "pointed to by the odd-color arrow.<br><br>" +
+                     "Please try to be QUICK,<br>" +
+                     "but also ACCURATE.<br><br>"
+        };
+
+        // Practice sequence
+
+        // type of frame to display
+        var frameType = ["begin"];
+        if(!nopractice || nopractice === 'false')
+            frameType = frameType.concat(["message","message","message",
+                                          "message","message","message",
+                                          "practice","practice","practice","practice",
+                                          "message"]);
+        frameType.push("message");
+
+        // message to display
+        var frameMessage = [TestMessage.begin];
+        if(!nopractice || nopractice === 'false')
+            frameMessage = frameMessage.concat([TestMessage.instructions[0],
+                                                TestMessage.instructions[1],
+                                                TestMessage.instructions[2],
+                                                TestMessage.instructions[3],
+                                                TestMessage.instructions[4],
+                                                TestMessage.practice[0],
+                                                "","","","",
+                                                TestMessage.practice[1]]);
+        frameMessage.push(TestMessage.test);
+
+        // color and response features of the search elements
+        var boxes = {colors: [[]],arrows: [[]]};
+        if(!nopractice || nopractice === 'false')
+        {
+            boxes.colors = boxes.colors.concat([
+                                 [],[],[],[],[],[],
+                                 [colCode.yellow,colCode.blue,colCode.blue],
+                                 [colCode.blue,colCode.yellow,colCode.blue],
+                                 [colCode.yellow,colCode.yellow,colCode.blue],
+                                 [colCode.yellow,colCode.blue,colCode.yellow],
+                                 []]);
+            boxes.arrows = boxes.arrows.concat([
+                                 [],[],[],[],[],[],
+                                 [respCode.right,respCode.left,respCode.right],
+                                 [respCode.left,respCode.left,respCode.right],
+                                 [respCode.right,respCode.left,respCode.left],
+                                 [respCode.right,respCode.right,respCode.left],
+                                 []]);
+        }
+        boxes.colors.push([]);
+        boxes.arrows.push([]);
+
+        // features of target
+        var position = [""];
+        var color = [""];
+        var response = [""];
+        if(!nopractice || nopractice === 'false')
+        {
+            position = position.concat(["","","","","","",
+                                        "Top","Middle","Bottom","Middle",""]);
+            color = color.concat(["","","","","","",
+                                  "yellow","yellow","blue","blue",""]);
+            response = response.concat(["","","","","","",
+                                        "right","left","left","right",""]);
+        }
+        position.push([]);
+        color.push([]);
+        response.push([]);
+
+        // push all components into the frames chain
+        for(var i=0; i<frameType.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: frameType[i],
+                message: frameMessage[i],
+                colors: boxes.colors[i],
+                arrows: boxes.arrows[i],
+                tPosition: position[i],
+                tColor: color[i],
+                tResponse: response[i],
+                delay: 1000
+            });
+        }
+
+        // Test sequence
+
+        // We want a constant hazard rate for the go signal across trials,
+        // to avoid foreperiod effects.
+        // Go signal delay is exponential random between 0-1000 ms
+        // (to this we add a fixed 500ms delay).
+        // The probability density of the go signal delay
+        // is p(t)=1/350*exp(-t/350), its cumulative is P(t)=1-exp(-t/350),
+        // its mean and SD are m=s=350 and its hazard rate is H(t)=1/350.
+        // The random generator is t=-350*ln(U), U=rand(0,1).
+        // Random delays are quantized to 200, 400, 600, 800 and 1000 (add 500).
+        var frameDelay = [1300,700,700,700,700,1100,700,1100,900,900,
+                          700,700,1300,1100,1300,700,900,700,1500,700,
+                          1500,900,900,700,1100,900,700,900,700,900,
+                          1300,700,700,700,700,1100,700,1100,900,900,
+                          700,700,1300,1100,1300,700,900,700,1500,700,
+                          1500,900,900,700,1100,900,700,900,700,900];
+
+        // randomize the features of targets
+        color = [];
+        for(i = 0; i < (ntrials / 2); i++) color.push(["yellow","blue"]);
+        color = color.flatten().shuffle();
+
+        position = [];
+        for(i = 0; i < (ntrials / 3); i++) position.push(["Top","Middle","Bottom"]);
+        position = position.flatten().shuffle();
+
+        response = [];
+        for(i = 0; i < (ntrials / 2); i++) response.push(["left","right"]);
+        response = response.flatten().shuffle();
+
+        boxes = []; // boxes[trial] = {colors[position[1,2,3]: color, arrows[position[1,2,3]: arrow}
+
+        // assign colors and responses to search elements
+        for(i = 0; i < ntrials; i++)
+        {
+            // this var contains the response features of each box;
+            // we assign left and right to the first two elements randomly,
+            // then insert the target response in the appropriate position
+            temp = [respCode.left,respCode.right].shuffle();
+            temp.splice(posCode.indexOf(position[i]),0,respCode[response[i]]);
+
+            boxes.push(
+            {
+                colors: [],
+                arrows: []
+            });
+
+            for(var j = 0; j < 3; j++)
+            {
+                // the target
+                if(position[i] === posCode[j])
+                {
+                    boxes[i].colors[j] = colCode[color[i]];
+                    boxes[i].arrows[j] = respCode[response[i]];
+                }
+                // the distractors
+                else
+                {
+                    // distractors' color is opposite of target
+                    if(color[i] === "yellow") boxes[i].colors[j] = colCode["blue"];
+                    else boxes[i].colors[j] = colCode["yellow"];
+
+                    // distractors response
+                    boxes[i].arrows[j] = temp[j];
+                }
+            }
+        }
+
+        // finally, build the sequence
+        for(i = 0; (demo === "true" ? i < 3 : i < ntrials); i++)
+        {
+            frameSequence.push(
+            {
+                type: "test",
+                message: "",
+                colors: boxes[i].colors,
+                arrows: boxes[i].arrows,
+                tPosition: position[i],
+                tColor: color[i],
+                tResponse: response[i],
+                delay: frameDelay[i]
+            });
+        }
+    }
+
+    function setup(input)
+    {
+        // determine events to listen to and
+        // customize response elements
+        chosenInput = input;
+        if(chosenInput === 'taps')
+        {
+            tmbUI.UIevents = ['taps'];
+            getID("leftResponse").className = "responseButton";
+            getID("rightResponse").className = "responseButton";
+            getID("leftResponse").innerHTML = "L";
+            getID("rightResponse").innerHTML = "R";
+            images[0]= "images/choiceTap1.png";
+            images[1]= "images/choiceTap1R.png";
+            images[2]= "images/choiceTap2.png";
+            images[3]= "images/choiceTap2L.png";
+        }
+        else
+        {
+            tmbUI.UIevents = ['keys'];
+            tmbUI.UIkeys = [keyToCode(leftKey),keyToCode(rightKey)];
+            getID("leftResponse").innerHTML = leftKey;
+            getID("rightResponse").innerHTML = rightKey;
+            images[0]= "images/choiceKey1.png";
+            images[1]= "images/choiceKey1R.png";
+            images[2]= "images/choiceKey2.png";
+            images[3]= "images/choiceKey2L.png";
+        }
+        tmbUI.UIelements = ['leftResponse','rightResponse'];
+        tmbUI.highlight = "responseHighlight";
+
+        // set response timeout to 5 seconds
+        tmbUI.timeout = 5000;
+
+        // create the trials chain and start the testing sequence
+        setFrameSequence();
+        imagePreLoad(images,{callBack: nextTrial});
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+
+        // add appropriate meta viewport for scaling
+        setBodyScale(700,800);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>seed=123</i> -- random number generator seed<br>" +
+                "<i>ntrials=30</i> -- number of trials (max 60, min 6, divisible by 6)<br>" +
+                "<i>nopractice=true</i> -- omits practice trials<br>" +
+                "<i>chooseinput=true</i> -- whether we use chooseinput<br>" +
+                "<i>demo=true</i> -- runs in demo mode, only a few test trials<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+            document.getElementById('helpSpan').style.textAlign = 'left';
+            document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want a demo run
+        demo = getUrlParameters("demo", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // check if they want to bypass practice
+        nopractice = getUrlParameters("nopractice", "", true);
+
+        // check if they want to bypass chooseInput
+        useChooseInput = getUrlParameters("chooseinput", "", true);
+        if (!useChooseInput || useChooseInput === 'true')
+		{
+			useChooseInput = true;
+		}
+		else if (useChooseInput === 'false')
+		{
+			useChooseInput = false;
+		}
+		else
+		{
+			showAlert("Error: URL parameter 'chooseinput' must<br>" +
+					  "be set to 'true' or 'false'.<br><br>",
+					  "",
+					  null,
+					  '20pt');
+			return;
+		}
+        
+
+        // set the random generator's seed: if the seed parameter is set to
+        // 'seed', 'session' or 'group' these are read from the 'params' cookie
+        seed = getUrlParameters("seed", "", true);
+        if(!(seed = parseInt(seed))) seed = "choiceRTTask";
+        Math.seedrandom(seed);
+
+        // set the number of trials
+        // maximum 60, minimum 6, divisible by 6
+        ntrials = getUrlParameters("ntrials", "", true);
+        if (!(ntrials = parseInt(ntrials))) ntrials = 30;
+        ntrials = Math.ceil(ntrials / 6) * 6;
+        if (ntrials > 60) ntrials = 60;
+        else if (ntrials < 6) ntrials = 6;
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // disable spurious user interactions
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        if(!hasTouch) setup('keys');
+        else 
+        {
+        	if (useChooseInput) chooseInput({keyboard: true, touch: true},setup);
+        	else setup('taps');
+        }
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <!-- these DIVs contain the stimuli ------------------------------------>
+    <div id="Top" class="stim"><br>></div>
+    <div id="Middle" class="stim"><br>></div>
+    <div id="Bottom" class="stim"><br>></div>
+
+    <!-- these DIVs contain the response buttons --------------------------->
+    <div id="right">
+        <button type="button" id="rightResponse" class="keyButton">R</button>
+    </div>
+
+    <div id="left">
+        <button type="button" id="leftResponse" class="keyButton">L</button>
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it ------>
+    <noscript>
+        For full functionality of this site it is necessary to enable JavaScript.<br>
+        Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+        instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

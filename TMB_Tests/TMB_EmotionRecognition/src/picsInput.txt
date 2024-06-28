@@ -1,0 +1,53 @@
+* This is an input file to the Emotion Recognition Test.
+* Each line must contain the file path of an emotion picture,
+* relative to the directory containing the test's script.
+* Lines beginning with '*' are ignored.
+* FILEPATH
+images/fearful1.jpg
+images/angry1.jpg
+images/angry2.jpg
+images/fearful2.jpg
+images/sad1.jpg
+images/sad2.jpg
+images/sad3.jpg
+images/angry3.jpg
+images/sad4.jpg
+images/sad5.jpg
+images/happy1.jpg
+images/happy2.jpg
+images/sad6.jpg
+images/angry4.jpg
+images/happy3.jpg
+images/happy4.jpg
+images/fearful3.jpg
+images/happy5.jpg
+images/sad7.jpg
+images/fearful4.jpg
+images/fearful5.jpg
+images/sad8.jpg
+images/sad9.jpg
+images/angry5.jpg
+images/angry6.jpg
+images/fearful6.jpg
+images/happy6.jpg
+images/fearful7.jpg
+images/happy7.jpg
+images/happy8.jpg
+images/angry7.jpg
+images/happy9.jpg
+images/fearful8.jpg
+images/fearful9.jpg
+images/fearful10.jpg
+images/fearful11.jpg
+images/angry8.jpg
+images/fearful12.jpg
+images/angry9.jpg
+images/sad10.jpg
+images/angry10.jpg
+images/sad11.jpg
+images/sad12.jpg
+images/angry11.jpg
+images/happy10.jpg
+images/angry12.jpg
+images/happy11.jpg
+images/happy12.jpg

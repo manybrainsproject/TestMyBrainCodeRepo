@@ -1,0 +1,30 @@
+* This is an input file to the ENCODING component of the Verbal Paired Associates Test
+* Each line must contain a probe-target pair of words
+* The word separator is whitespace
+* Lines beginning with * are ignored
+* PROBE TARGET
+disposition freedom
+perception malice
+ability devotion
+glory suppression
+gratitude distinction
+pride method
+spirit attribute
+soul confidence
+attitude bravery
+facility hope
+discipline madness
+theory passion
+opinion grief
+vanity essence
+loyalty inducement
+animosity knowledge
+jealousy intellect
+recognition ingratitude
+immunity love
+interest predicament
+pleasure welfare
+violation fate
+chance impulse
+satire necessity
+thought safety

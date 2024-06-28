@@ -1,0 +1,30 @@
+* This is an input file to the STUDY component of the Visual Pair Associates Test
+* In this version of the input file, barn4.jpg (American flag barn) is replaced by barn9.jpg.
+* Each line must contain a probe-target pair of images
+* The word separator is 'whitespace'
+* Lines beginning with '*' are ignored
+* PROBE TARGET
+barn1.jpg barn9.jpg
+lobby1.jpg lobby4.jpg
+bath1.jpg bath4.jpg
+temple1.jpg temple4.jpg
+playground1.jpg playground4.jpg
+entry1.jpg entry4.jpg
+field1.jpg field4.jpg
+underwater1.jpg underwater4.jpg
+barn2.jpg barn5.jpg
+lobby2.jpg lobby5.jpg
+bath2.jpg bath5.jpg
+temple2.jpg temple5.jpg
+playground2.jpg playground5.jpg
+entry2.jpg entry5.jpg
+field2.jpg field5.jpg
+underwater2.jpg underwater5.jpg
+barn3.jpg barn6.jpg
+lobby3.jpg lobby6.jpg
+bath3.jpg bath6.jpg
+temple3.jpg temple6.jpg
+playground3.jpg playground6.jpg
+entry3.jpg entry6.jpg
+field3.jpg field6.jpg
+underwater3.jpg underwater6.jpg

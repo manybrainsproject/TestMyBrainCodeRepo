@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Digit Span">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test, digit memory span">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB DigitSpan">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+      DigitSpan.html?help
+
+     For reference see:
+
+      Richardson, J. T. (2007). Measures of short-term memory: a historical
+        review. Cortex 43, 635–650.
+
+      Woods, D. L. et al. (2010). Improving digit span assessment of short-term
+        verbal memory. J of Clin and Exp Neuropsychology 33, : 101–111.
+
+     Notes:
+
+      The participant tries to report backwards the previously displayed
+      sequence of digits. The script aborts either when the longest supplied
+      sequence (n=11) is correctly reported, or when two sequences of same
+      length are both reported incorrectly. The score is the highest sequence
+      length the participant reported correctly at least once.
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Memorizing Numbers</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <style nonce="***tmb_inline_tag_nonce***">
+
+        *
+        {
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        *::after, *::before
+        {
+            box-sizing: border-box;
+        }
+        
+        html
+		{
+			width: 100vw;
+			height: 100vh;
+		}
+
+        body
+        {
+            width: 100vw;
+            height: 100vh;
+            margin: auto;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 13pt;
+            text-align: center;
+        }
+
+        #container
+        {
+            width: 600px;
+            height: 768px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -384px;
+            margin-left: -300px;
+            text-align: center;
+            display: none;
+        }
+
+        .button
+        {
+            border: 2px solid #f1c40f;
+            border-radius: 1em;
+            background: transparent;
+            color: #000000;
+            box-shadow: 0 5px 15px 5px grey
+        }
+
+        .button:active
+        {
+            box-shadow: 0 5px 15px 1px lightgrey
+        }
+
+        .button:focus
+        {
+            outline: none
+        }
+
+        #feedback
+        {
+            font-size: 30pt;
+            line-height: 2em;
+            height: 100px;
+            text-align: center;
+            display: none;
+        }
+
+        #digits
+        {
+            font-family: monospace;
+            font-size: 60pt;
+            line-height: 1.5em;
+            height: 150px;
+            text-align: center;
+            display: none;
+        }
+
+        #responseContainer
+        {
+            width: 340px;
+            height: 440px;
+            margin: auto;
+            text-align:center;
+            display: none;
+        }
+
+        .responseButton
+        {
+            -webkit-appearance: none;
+            background: darkgrey;
+            font-size: 40pt;
+            line-height: 1.5em;
+            width: 100px;
+            height: 100px;
+            margin: 5px;
+            border: 5px solid lightgray;
+            border-right: 5px solid #727272;
+            border-bottom: 5px solid #727272;
+            padding: 0;
+            color: #ffffff;
+            text-align: center;
+            font-family: Palatino Linotype, Bookman Antiqua, Palatino, serif;
+        }
+        
+        .deleteButton
+        {
+            -webkit-appearance: none;
+            background: darkgrey;
+            font-size: 40pt;
+            line-height: 1.5em;
+            height: 100px;
+            margin: 5px;
+            border: 5px solid lightgray;
+            border-right: 5px solid #727272;
+            border-bottom: 5px solid #727272;
+            padding: 0;
+            color: #ffffff;
+            text-align: center;
+            font-family: Palatino Linotype, Bookman Antiqua, Palatino, serif;
+            width: 330px;
+        }
+
+        .responseButton:focus
+        {
+            outline: none
+        }
+        
+        .responseHighlight
+		{
+			border: 5px solid red;
+		}
+
+    </style>
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" nonce="***tmb_inline_tag_nonce***" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" nonce="***tmb_inline_tag_nonce***" src="chooseInput.v1.Apr23.js"></script>
+    <script type="text/javascript" nonce="***tmb_inline_tag_nonce***" src="TestHelper.v1.May23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript" nonce="***tmb_inline_tag_nonce***">
+
+    var testVersion;                // version identifier for this test
+    var chosenInput;                // input type (taps or keys)
+    var previous = true;            // true => previous correct, false => wrong
+    var response = "";              // the user's response
+    var testStart = 0;              // start timestamp of the test
+    var chainSeq = [];              // array of stimulus events to schedule
+    var frameSequence = [];         // object containing the sequence of frames and their properties
+    var frame;                      // single frame object
+    var results = [];               // array to store trials details and responses
+    var outcomes = {};              // object containing outcome variables
+    var score = 0;                  // score variable
+    var reportOrder;                // URL parameter: how to report digits ['forward','backward']
+    var seed;                       // URL parameter: random generator seed
+    var debug;                      // URL parameter: output to console
+    var demo;                       // URL parameter: run in demo mode
+    var showresults;                // URL parameter: if they want to show results in a popup window
+    var autosave;                   // URL parameter: if they want to save data in a file automatically
+    var filename;                   // URL parameter: filename for data
+    var usage = "";                 // URL parameter: show usage
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+
+        // deal with timeout
+        if(tmbUI.status === "timeout")
+        {
+            // see how many digits remain to be entered
+            var digits = frame.digits.length - response.length;
+
+            // warn the user
+            getID("feedback").innerHTML = "Press " + digits +
+                                          (digits === 1 ? " more number." :
+                                          (response.length === 0 ? " numbers."
+                                                                : " more numbers."));
+            // keep getting input
+            tmbUI.getInput();
+        }
+        // manage the response
+        else
+        {
+            // if they pressed 'backspace', then delete previous response
+            if(tmbUI.response === 'backspace')
+            {
+                getID("digits").innerHTML = getID("digits").innerHTML.slice(0,-1);
+                response = response.slice(0,-1);
+            }
+            // else show the number pressed
+            else
+            {
+                // for backward report, make a dereferenced copy of the digits
+                // array, then reverse it
+                if(reportOrder === 'backward')
+                {
+                    var corr = frame.digits.slice();
+                    corr = corr.reverse();
+                }
+
+                // show the number pressed
+                getID("digits").innerHTML += tmbUI.response.slice(-1);
+                response += tmbUI.response.slice(-1);
+            }
+
+            // if not done, keep getting input
+            if (response.length < frame.digits.length)
+            {
+                if(frame.type === "test") getID("feedback").innerHTML = "";
+                tmbUI.getInput();
+            }
+            // they got all correct
+            else if ((reportOrder === 'forward' &&
+                      response === frame.digits.join("")) ||
+                     (reportOrder === 'backward' &&
+                      response === corr.join("")))
+            {
+                // save the results
+                results.push(
+                {
+                    type: frame.type, // one of practice or test
+                    digits: frame.digits.join(""), // the digits
+                    response: response, // the response
+                    correct: 1, // boolean correct
+                    rt: (now() - testStart).round(2), // rt
+                    state: tmbUI.status // state of the response handler
+                });
+
+                // if we are debugging, log the results
+                if(debug === 'true') logResults(results,'inc');
+
+                // clear the response and remember they were correct
+                response = "";
+                previous = true;
+
+                // give feedback during practice
+                if (frame.type === "practice")
+                    getID("feedback").innerHTML = "Correct!";
+                else getID("feedback").innerHTML = "";
+
+                // if it's the last frame, set the score
+                if(!frameSequence.length) score = frame.digits.length;
+
+                setTimeout(function ()
+                {
+                    showFrame(null);
+                    nextTrial();
+                }, 1000);
+            }
+            // they made errors: the score is the highest capacity level
+            // at which they made zero or one error
+            else
+            {
+                // save the results
+                results.push(
+                {
+                    type: frame.type, // one of practice or test
+                    digits: frame.digits.join(""), // the digits
+                    response: response, // the response
+                    correct: 0, // boolean correct
+                    rt: (now() - testStart).round(2), // rt
+                    state: tmbUI.status // state of the response handler
+                });
+
+                // if we are debugging, log the results
+                if(debug === 'true') logResults(results,'inc');
+
+                // clear the response
+                response = "";
+
+                // during practice give feedback and rewind
+                if (frame.type === "practice")
+                {
+                    getID("feedback").innerHTML = "That was " +
+                                                  (reportOrder === 'forward' ?
+                                                   frame.digits.join("") :
+                                                   corr.join("")) +
+                                                  ". Try again!";
+
+                    // rewind the frame sequence by one frame,
+                    // so that the same frame is displayed again
+                    frameSequence.unshift(frame);
+                }
+                // they made an error on the last frame of the sequence
+                else if(!frameSequence.length)
+                {
+                    // two errors at the last capacity level
+                    if(previous === false) score = frame.digits.length - 1;
+                    // only one error at the last level
+                    else score = frame.digits.length;
+                }
+                // they made two errors at the same capacity level
+                else if(frame.digits.length < frameSequence[0].digits.length &&
+                        previous === false)
+                {
+                    score = frame.digits.length - 1;
+                    frameSequence = [];
+                }
+                // remember the error
+                else previous = false;
+
+                setTimeout(function ()
+                {
+                    showFrame(null);
+                    nextTrial();
+                }, (frame.type === "practice" ? 2000 : 1000));
+            }
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame)
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                  "Click here for instructions",
+                                                  function ()
+                                                  {
+                                                      showFrame(null);
+                                                      nextTrial();
+                                                  },
+                                                  '20pt');
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                         "Click here to continue",
+                                                         function ()
+                                                         {
+                                                             showFrame(null);
+                                                             nextTrial();
+                                                         },
+                                                         '20pt');
+            // deal with practice and test frames
+            else
+            {
+                // build the stimulus chain
+
+                // clear the chain
+                chainSeq = [];
+
+                // this is for closure
+                function setDigit(i)
+                {
+                    chainSeq.push(1000,
+                                  function()
+                                  {
+                                      getID("digits").innerHTML = frame.digits[i];
+                                  });
+                }
+
+                chainSeq.push(function()
+                {
+                    // give instructions only on practice trials
+                    if(frame.type === "practice")
+                        getID("feedback").innerHTML = "Memorize the numbers!";
+                    else getID("feedback").innerHTML = "";
+
+                    // erase the digits
+                    getID("digits").innerHTML = "";
+                },
+                1000,
+                function()
+                {
+                    if(chosenInput === 'taps')
+                        showFrame("container","responseContainer",
+                                  "feedback","digits");
+                    else showFrame("container","feedback","digits");
+                });
+
+                for(var i = 0; i < frame.digits.length; i++) setDigit(i);
+
+                chainSeq.push(1000,
+                              function()
+                              {
+                                  getID("digits").innerHTML = "";
+                                  getID("feedback").innerHTML = "Now press the numbers...";
+                                  testStart = now();
+                                  tmbUI.getInput();
+                              });
+
+                tmbUI.timeout = 3000;
+
+                requestAnimationFrame(function()
+                {
+                    chainTimeouts(chainSeq);
+                });
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            // all test trials (excluding practice and timeouts)
+            var tmp1 = results.filter(function( obj )
+            {
+                return obj.type !== 'practice' &&
+                       obj.state !== 'timeout';
+            });
+
+            // response device
+            var tmp2 = tmp1[0] ? tmp1[0].state : null;
+            tmp2 = /key/i.test(tmp2) ? 'keyboard' :
+                   /touch/i.test(tmp2) ? 'touch' :
+                   /mouse/i.test(tmp2) ? 'mouse' :
+                   /pen/i.test(tmp2) ? 'pen' :
+                   'unknown';
+
+            // compute score and outcome variables
+            outcomes.score = score;
+            outcomes.numCorrect = tmp1.length ? tmp1.pluck("correct").sum() : 0;
+            outcomes.span = score;
+            outcomes.reportOrder = reportOrder;
+            outcomes.responseDevice = tmp2;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // if we save locally, append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = reportOrder+"SpanResults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                tmbSubmitToServer(results,score,outcomes);
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage;
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>Memorizing Numbers</h2>" +
+                      "- " + reportOrder + " version -<br>" +
+                      "<img src='images/begin.gif' alt='Title gif'><br><br>"),
+            "practice": [("<h3>Instructions:</h3>" +
+                          "<img src='images/digitsStream.gif' alt='Instructions gif'><br>" +
+                          "Try to remember these numbers.<br><br>"),
+                         ("<h3>Instructions:</h3>" +
+                          "<img src='images/"+reportOrder+"DigitsSeq.gif' alt='Instructions gif'><br>" +
+                          (chosenInput === 'taps' ? "Then tap the numbers<br>"
+                                                  : "Then press the numbers on the <b>keyboard</b><br>") +
+                          (reportOrder === 'forward' ? "in the order you saw them.<br>"
+                                                     : "in <b>reverse</b> order.<br>") +
+                          "Let's practice!<br><br>")],
+            "test": ("Excellent!<br>" +
+                     "You have completed the practice.<br>" +
+                     "Now let's do more.<br><br>" +
+                     "To correct mistakes<br>" +
+                     "you can press backspace/delete.<br><br>")
+        };
+
+        // type of frame to display
+        var frameType = ["begin",
+                         "message","message",
+                         "practice","practice","message",
+                         "test","test","test","test","test","test","test","test","test","test",
+                         "test","test","test","test","test","test","test","test","test","test"
+                        ];
+
+        // message to display
+        var frameMessage = [testMessage.begin,
+                            testMessage.practice[0],testMessage.practice[1],
+                            "","",testMessage.test,
+                            "","","","","","","","","","",
+                            "","","","","","","","","",""];
+
+        var sequence = [];
+        for(var i = 0; i < 8; i++)
+        {
+            sequence[i*2] = range(1,9).shuffle().slice(0,i+2);
+            sequence[i*2+1] = range(1,9).shuffle().slice(0,i+2);
+        }
+        sequence[16] = range(1,9).shuffle().concat(randInt(1,9));
+        sequence[17] = range(1,9).shuffle().concat(randInt(1,9));
+        sequence[18] = range(1,9).shuffle().concat(range(1,9).shuffle().slice(0,2));
+        sequence[19] = range(1,9).shuffle().concat(range(1,9).shuffle().slice(0,2));
+
+        var frameDigits = [[],
+                           [],[],
+                           [1,2],[1,2,3],[]];
+        frameDigits = frameDigits.concat(sequence);
+
+        // push all components into the frames chain
+        for(i = 0; (demo === "true" ? i < 10 : i < frameType.length); i++)
+        {
+            frameSequence.push(
+                    {
+                        type: frameType[i],
+                        message: frameMessage[i],
+                        digits: frameDigits[i]
+                    });
+        }
+    }
+
+    function setup(input)
+    {
+        // determine events to listen to and
+        // customize response elements
+        chosenInput = input;
+        if(chosenInput === 'taps')
+        {
+            tmbUI.UIevents = 'taps';
+            tmbUI.UIelements = ['response1','response2','response3',
+                                'response4','response5','response6',
+                                'response7','response8','response9','backspace'];
+            tmbUI.highlight = "responseHighlight";
+        }
+        else
+        {
+            tmbUI.UIevents = ['keys'];
+            tmbUI.UIkeys = [keyToCode('1'),keyToCode('2'),keyToCode('3'),
+                            keyToCode('4'),keyToCode('5'),keyToCode('6'),
+                            keyToCode('7'),keyToCode('8'),keyToCode('9'),
+                            keyToCode('numpad1'),keyToCode('numpad2'),keyToCode('numpad3'),
+                            keyToCode('numpad4'),keyToCode('numpad5'),keyToCode('numpad6'),
+                            keyToCode('numpad7'),keyToCode('numpad8'),keyToCode('numpad9'),
+                            keyToCode('backspace')];
+            getID("container").style.height = "600px";
+            getID("container").style.marginTop = "-300px";
+        }
+        tmbUI.timeout = 4000;
+
+        // create the trials chain
+        setFrameSequence();
+
+        // preload images and start the testing sequence
+        imagePreLoad(["images/begin.gif","images/digitsStream.gif",
+                      "images/"+reportOrder+"DigitsSeq.gif"],
+                     {callBack: nextTrial});
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>order=forward</i> -- how to report digits [forward,backward]<br>" +
+                "<i>seed=123</i> -- random number generator seed<br>" +
+                "<i>demo=true</i> -- runs in demo mode, only a few test trials<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+                document.getElementById('helpSpan').style.textAlign = 'left';
+                document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // which order for reports
+        reportOrder = getUrlParameters("order", "", true);
+        if(reportOrder !== 'forward' && reportOrder !== 'backward')
+            reportOrder = 'forward';
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want a demo run
+        demo = getUrlParameters("demo", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // set the random generator's seed
+        seed = getUrlParameters("seed", "", true);
+        if (!(seed = parseInt(seed)))
+        {
+        	seed = reportOrder+"Span";
+        } 
+        else
+        {
+        	seed = reportOrder+parseInt(seed);
+        }
+        Math.seedrandom(seed);
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // disable spurious user interactions
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        // add appropriate meta viewport for scaling
+        setBodyScale(620,900);
+
+        if(!hasTouch) setup('keys');
+        else chooseInput({keyboard: true, touch: true},setup);
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <div id="container">
+
+        <div id="feedback"></div>
+
+        <div id="digits"></div>
+
+        <div id="responseContainer">
+            <button type="button" id="response1" class="responseButton">1</button>
+            <button type="button" id="response2" class="responseButton">2</button>
+            <button type="button" id="response3" class="responseButton">3</button>
+            <button type="button" id="response4" class="responseButton">4</button>
+            <button type="button" id="response5" class="responseButton">5</button>
+            <button type="button" id="response6" class="responseButton">6</button>
+            <button type="button" id="response7" class="responseButton">7</button>
+            <button type="button" id="response8" class="responseButton">8</button>
+            <button type="button" id="response9" class="responseButton">9</button>
+            <button type="button" id="backspace" class="deleteButton">&#9003;</button>
+        </div>
+
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it -->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

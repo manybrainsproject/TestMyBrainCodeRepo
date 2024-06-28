@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="Emotion Recognition Test">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB EmoRecog">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- Copyright 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+      EmoRecog.html?help
+
+     Notes:
+
+      This test measures emotion recognition.
+      The participant is asked to choose the word that best matches
+      the emotion of the face being displayed.
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Emotion Recognition</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <link rel="stylesheet" href="EmoRecog_Main.v1.Jul23.css">
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.May23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var testVersion;        // version identifier for this test
+    var images = [];        // array of all images
+    var picsSeq = [];       // picture sequence
+    var imgCount = 0;       // count of already seen image pairs
+    var ISI = 1000;         // inter-stimulus interval
+    var correct;            // correct=1, wrong=0
+    var ch;                 // timeouts chain
+    var score = 0;          // accumulated score
+    var results = [];       // array to store trials details and responses
+    var outcomes = {};      // object containing outcome variables
+    var frameSequence = []; // object containing the sequence of frames and their properties
+    var frame;              // single frame object
+    var inputFile;          // url parameter: file containing probe-target image pairs
+    var debug;              // URL parameter: output to console
+    var showresults;        // URL parameter: if they want to show results in a popup window
+    var autosave;           // URL parameter: if they want to save data in a file automatically
+    var filename;           // URL parameter: filename for data
+    var usage = "";         // URL parameter: show usage
+    var repeated = 0;   	// whether the current trial has been repeated
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        var choice;
+
+        // if the timeouts chain is still running, clear it
+        if(ch) clearChainTimeouts(ch);
+
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+
+        // retrieve which image they chose
+        if(tmbUI.response)
+        {
+            choice = tmbUI.response;
+        }
+        else choice = null;
+
+        // is the response correct?
+        correct = (choice === frame.emotion) ? 1 : 0;
+
+        results.push(
+        {
+            trialId: 'test' + imgCount, // trial identifier
+            image: frame.image.replace('images/', ''), // image shown
+            emotion: frame.emotion, // emotion in the image
+            response: choice, // emotion chosen by the user
+            correct: correct, // boolean correct
+            rt: tmbUI.rt, // response time
+            state: tmbUI.status, // state of the response handler
+            repeated: repeated, // whether this trial has a prior timeout
+            flagged: (tmbUI.rt < 300) ? 1 : 0, // whether or not the trial has a qc violation
+            timestamp: Date.now() // unix ms timestamp of response
+        });
+
+        // if we are debugging, log the results
+        if(debug === 'true') logResults(results,'inc');
+
+        // if the input event returns a timeout,
+        // stop the sequence and advise the participant
+        if(tmbUI.status === "timeout")
+        {
+
+            // change correct, RT, and flagged values to null
+            results[results.length - 1].rt = null;
+            results[results.length - 1].correct = null;
+            results[results.length - 1].flagged = null;
+
+            // changed repeated variable to 1, to mark this timeout on retry
+            repeated = 1;
+
+            // rewind the frame sequence by one frame,
+            // so that the same frame is displayed again
+            frameSequence.unshift(frame);
+            imgCount--;
+
+            showAlert("You are taking too long to respond.<br><br>" +
+                      "You should click the emotion<br>" +
+                      "that best matches the face.<br><br>",
+                      "Click here to retry",
+                      function()
+                      {
+                          showFrame("null");
+                          nextTrial();
+                      },
+                      '20pt');
+        }
+        else
+        {
+            repeated = 0; // resetting repeated variable when no timeout
+            showFrame("null");
+            nextTrial();
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame)
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                  "Click here for instructions",
+                                                  function ()
+                                                  {
+                                                      showFrame("null");
+                                                      nextTrial();
+                                                  },
+                                                  '20pt');
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                         "Click here to continue",
+                                                         function ()
+                                                         {
+                                                             showFrame("null");
+                                                             nextTrial();
+                                                         },
+                                                         '20pt');
+            // deal with test frames
+            else
+            {
+                ch = chainTimeouts(
+                function()
+                {
+                    imgCount++;
+                    getID("counter").innerHTML = "<b>"+imgCount+" of "+picsSeq.length+"</b>";
+                    showFrame("counter");
+                },
+                ISI,
+                function()
+                {
+                    getID("emoPic").onload = function()
+                    {
+                        showFrame("counter","emotion","responseContainer");
+                        tmbUI.getInput();
+                    };
+                    getID("emoPic").src = frame.image;
+                },
+                10000,
+                function()
+                {
+                	// need to cancel the onload event when image turns black,
+                	// otherwise tmbUI.getInput would be called again
+                    getID("emoPic").onload = function(){};
+                    getID("emoPic").src = 'images/testBlack.jpg';
+                });
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            //compute outcomes
+            var tmp1, tmp2, tmp3;
+            var maxResp, responseProportion = [];
+
+            // all test trials (excluding timeouts)
+            tmp1 = results.filter(function( obj )
+            {
+                return obj.state !== 'timeout';
+            });
+
+            // all emotions stats
+            tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+            score = outcomes.score = tmp2.length;
+            outcomes.accuracy = tmp2.length / tmp1.length;
+            outcomes.meanRTc = tmp2.length ? tmp2.average().round(2) : null;
+            outcomes.medianRTc = tmp2.length ? tmp2.median().round(2) : null;
+            outcomes.sdRTc = tmp2.length > 1 ? tmp2.sd().round(2) : null;
+
+            // happy stats
+
+            // all happy
+            tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.emotion === 'h';
+            });
+            outcomes.happy_accuracy = tmp2.pluck('correct').average();
+
+            // happy correct rts
+            tmp3 = tmp2.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+            outcomes.happy_meanRTc = tmp3.length ? tmp3.average().round(2) : null;
+            outcomes.happy_medianRTc = tmp3.length ? tmp3.median().round(2) : null;
+            outcomes.happy_sdRTc = tmp3.length > 1 ? tmp3.sd().round(2) : null;
+
+            // angry stats
+
+            // all angry
+            tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.emotion === 'a';
+            });
+            outcomes.angry_accuracy = tmp2.pluck('correct').average();
+
+            // angry correct rts
+            tmp3 = tmp2.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+            outcomes.angry_meanRTc = tmp3.length ? tmp3.average().round(2) : null;
+            outcomes.angry_medianRTc = tmp3.length ? tmp3.median().round(2) : null;
+            outcomes.angry_sdRTc = tmp3.length > 1 ? tmp3.sd().round(2) : null;
+
+            // fearful stats
+
+            // all fearful
+            tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.emotion === 'f';
+            });
+            outcomes.fearful_accuracy = tmp2.pluck('correct').average();
+
+            // fearfull correct rts
+            tmp3 = tmp2.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+            outcomes.fearful_meanRTc = tmp3.length ? tmp3.average().round(2) : null;
+            outcomes.fearful_medianRTc = tmp3.length ? tmp3.median().round(2) : null;
+            outcomes.fearful_sdRTc = tmp3.length > 1 ? tmp3.sd().round(2) : null;
+
+            // sad stats
+
+            // all sad
+            tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.emotion === 's';
+            });
+            outcomes.sad_accuracy = tmp2.pluck('correct').average();
+
+            // sad correct rts
+            tmp3 = tmp2.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+            outcomes.sad_meanRTc = tmp3.length ? tmp3.average().round(2) : null;
+            outcomes.sad_medianRTc = tmp3.length ? tmp3.median().round(2) : null;
+            outcomes.sad_sdRTc = tmp3.length > 1 ? tmp3.sd().round(2) : null;
+
+            // did any timeouts occur?
+            tmp2 = results.filter(function( obj )
+            {
+                return obj.state === 'timeout';
+            });
+            outcomes.any_timeouts = tmp2.length > 0 ? 1 : 0;
+
+            // qc flag for medianRTc < 700 ms
+            outcomes.flag_medianRTc = outcomes.medianRTc >= 700 ? 0 : 1;
+
+            // qc flag for > 90% same response
+            var respOpts = ['a', 'h', 's', 'f'];
+            for (var i = 0; i < respOpts.length; i++)
+            {
+            	responseProportion.push(tmp1.filter(function( obj )
+            	{
+                    return obj.response === respOpts[i];
+                }).length / tmp1.length);
+            }
+            maxResp = responseProportion.reduce((a, b) => Math.max(a, b), -Infinity);
+            outcomes.flag_sameResponse = maxResp > .9 ? 1 : 0;
+
+            // qc flag for > 10% of trials being flagged
+            outcomes.flag_trialFlags = tmp1.pluck('flagged').average() > .1 ? 1 : 0;
+
+            // response device
+            tmp3 = tmp1.length ? tmp1[0].state : 'none';
+            tmp3 = /key/i.test(tmp3) ? 'keyboard' :
+                   /touch/i.test(tmp3) ? 'touch' :
+                   /mouse/i.test(tmp3) ? 'mouse' :
+                   /pen/i.test(tmp3) ? 'pen' :
+                   'unknown';
+                   
+        	outcomes.responseDevice = tmp3;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "EmoRecogResults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                tmbSubmitToServer(results,score,outcomes);
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage, i, emotion;
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>Guess the Emotion</h2>" +
+                      "<img src='images/emotions.png' alt='title image'><br><br>"),
+            "instructions": [("<h2>Instructions:</h2>" +
+                              "Click the emotion<br>that best matches the face.<br><br>")]
+        };
+
+        // type of frame to display
+        var frameType = ["begin","message"];
+
+        // message to display
+        var frameMessage = [testMessage.begin,
+                            testMessage.instructions[0]];
+
+        // image to display
+        var frameImg = ["",""];
+
+        // push all components into the frames chain
+        for(i = 0; i < frameType.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: frameType[i],
+                message: frameMessage[i],
+                image: frameImg[i]
+            });
+        }
+
+        for(i = 0; i < picsSeq.length; i++)
+        {
+            emotion = picsSeq[i].slice(picsSeq[i].lastIndexOf('/')+1).charAt(0).toLowerCase();
+
+            frameSequence.push(
+            {
+                type: "test",
+                message: "",
+                image: picsSeq[i],
+                emotion: emotion
+            });
+        }
+
+        // start the trial sequence
+        nextTrial();
+    }
+
+    // this is the input file's parser: it builds a JSON object
+    // from the instructions and material in the file
+    function parseFile(text)
+    {
+        // parse the input file
+        if(text)
+        {
+            var lines, word, errors = 0;
+
+            // Parse the file's text into lines by splitting on 'newline'.
+            // (do not use regexp, e.g. /\r?\n/, because ie8 throws up)
+            lines = text.split("\n");
+
+            // parse each line
+            for (var i = 0; i < lines.length; i++)
+            {
+                // first check if this line is a comment (starts with '*'?)
+                if(lines[i].charAt(0) === "*") continue;
+
+                // read the line
+                word = lines[i];
+
+                // sanitize the word, so there are no linefeeds at the end
+                word = word.trim();
+
+                // save the image, or stop and report an error
+                if(word.length) picsSeq.push(word);
+                else
+                {
+                    errors++;
+                    break;
+                }
+            }
+
+            if(errors)
+            {
+                showAlert("parseFile: Incorrect formatting at line " + (i+1) + ".<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else if(picsSeq.length === 0)
+            {
+                showAlert("parseFile: Error parsing input file's content.<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else
+            {
+                images = picsSeq.slice();
+                images = images.unique();
+                images.push('images/emotions.png','images/testBlack.jpg');
+                imagePreLoad(images,{pipeline: false, callBack: setFrameSequence});
+            }
+        }
+        else showAlert("ajaxRequest: Error reading input file.<br><br>",
+                       "",
+                       null,
+                       '20pt');
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+                        
+         // scale to fit in viewport
+        setBodyScale(600,600);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>input=testInput.txt</i> -- image pairs input file<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+                document.getElementById('helpSpan').style.textAlign = 'left';
+                document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // specify the input file
+        inputFile = getUrlParameters("input", "", true);
+        if(!inputFile) inputFile = "picsInput.txt";
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // determine events to listen to
+        if(hasTouch || hasPointer) tmbUI.UIevents = ['taps','clicks'];
+        else tmbUI.UIevents = ['clicks'];
+        tmbUI.UIelements = ['a','f','s','h'];
+        tmbUI.highlight = "responseHighlight";
+        tmbUI.timeout = 20000;
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // disable spurious user interaction
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+                
+        // read the input file and call the parser
+        ajaxRequest({url: inputFile,
+                     async: true,
+                     callback: parseFile});
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <!-- this DIV shows the count of image pairs already seen -->
+    <div id="counter"></div>
+
+    <!-- this DIV shows the images -->
+    <div id="emotion">
+        <img id="emoPic" class="image" src="" alt="Emotion img">
+    </div>
+
+    <!-- this DIV shows the response buttons -->
+    <div id="responseContainer">
+        <button type="button" class="responseButton" id="a">
+            Angry
+        </button>
+        <button type="button" class="responseButton" id="f">
+            Fearful
+        </button>
+        <button type="button" class="responseButton" id="s">
+            Sad
+        </button>
+        <button type="button" class="responseButton" id="h">
+            Happy
+        </button>
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it------->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

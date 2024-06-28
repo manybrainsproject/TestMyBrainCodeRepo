@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Vocabulary Test">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB Vocab">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+       Vocab.html?help
+
+     For reference see:
+
+       Bowles RP, Salthouse TA. Vocabulary test format and differential relations
+        to age. Psychol Aging. 2008;23(2):366-376.
+
+     Notes:
+
+      The participant is asked to choose among 5 alternatives the word
+      most similar in meaning to a probe word.
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Vocabulary Test</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <style>
+
+        *
+        {
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        *::after, *::before
+        {
+            box-sizing: border-box;
+        }
+        
+        html
+		{
+			width: 100vw;
+			height: 100vh;
+		}
+
+        body
+        {
+            width: 100vw;
+            height: 100vh;
+            margin: auto;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 13pt;
+            text-align: center;
+        }
+        
+        #counter
+        {
+            height: 50px;
+            width: 200px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -250px;
+            margin-left: -100px;
+            text-align: center;
+            font-size: 20pt;
+            display: none;
+        }
+
+        #probe
+        {
+            height: 50px;
+            width: 600px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -150px;
+            margin-left: -300px;
+            text-align: center;
+            font-size: 30pt;
+            font-family: monospace;
+            display: none;
+        }
+
+        #choice
+        {
+            height: 300px;
+            width: 400px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -50px;
+            margin-left: -200px;
+            text-align: left;
+            font-size: 24pt;
+            font-family: monospace;
+            display: none;
+        }
+
+        .choiceWord
+        {
+            border: 5px solid white;
+        }
+
+        .button
+        {
+            border: 2px solid #f1c40f;
+            border-radius: 1em;
+            background: transparent;
+            color: #000000;
+            box-shadow: 0 5px 15px 5px grey
+        }
+
+        .button:active
+        {
+            box-shadow: 0 5px 15px 1px lightgrey
+        }
+
+        .button:focus
+        {
+            outline: none
+        }
+        
+        .responseHighlight
+		{
+			border: 5px solid red;
+		}
+
+    </style>
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.Oct23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var testVersion;        // version identifier for this test
+    var wordPairs = [];     // array of probe-target words
+    var pairsCount = 0;     // count of already seen word pairs
+    var ISI = 500;          // inter-stimulus interval
+    var ch;                 // chain of timeouts for stimulus presentation
+    var correct;            // correct=1, wrong=0
+    var repeated = 0;		// variable to log whether a trial has been repeated
+    var score = 0;          // accumulated score
+    var results = [];       // array to store trials details and responses
+    var outcomes = {};      // object containing outcome variables
+    var frameSequence = []; // object containing the sequence of frames and their properties
+    var frame;              // single frame object
+    var inputFile;          // URL parameter: file containing probe-target word pairs
+    var timeoutDuration;	// URL parameter: time (ms) until timeout occurs
+    var demo;               // URL parameter: run in demo mode
+    var debug;              // URL parameter: output to console
+    var showresults;        // URL parameter: if they want to show results in a popup window
+    var autosave;           // URL parameter: if they want to save data in a file automatically
+    var filename;           // URL parameter: filename for data
+    var usage = "";         // URL parameter: show usage
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        var choice, isTimeout, choiceText;
+
+        // clear the stimulus chain, in case it's still running
+        clearChainTimeouts(ch);
+
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+
+		// did the trial time out?
+		isTimeout = tmbUI.status === "timeout";
+
+        // retrieve which word they chose
+        if(tmbUI.response)
+        {
+        	choiceText = tmbUI.response.replace('numpad', '');
+        	choiceText = tmbUI.response.replace('choice', '');
+        	choice = getID("choice" + choiceText).innerHTML;
+            choice = choice.slice(3).toLowerCase().trim();
+        }
+        else choice = "none";
+
+        // is the response correct?
+        correct = (choice === frame.target.toLowerCase().trim()) ? 1 : 0;
+
+        results.push(
+        {
+            type: frame.type, // one of practice or test
+            probe: frame.probe, // probe word
+            target: frame.target, // target word
+            response: choice, // the chosen word
+            correct: isTimeout ? null : correct, // boolean correct
+            rt: isTimeout ? null : tmbUI.rt, // response time
+            repeated: repeated, // whether this trial has previously been attempted
+            responseTimestamp: now(), // timestamp of response, ms since test load
+            state: tmbUI.status // state of the response handler
+        });
+
+        // if we are debugging, log the results
+        if(debug === 'true') logResults(results,'inc');
+
+        if(frame.type === "practice")
+        {
+            // on practice trials, if the input event returns a timeout
+            // or the response is not correct,
+            // stop the sequence and advise the participant
+            if(isTimeout || !correct)
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+                
+                // mark trial as repeated for next attempt
+                repeated = 1;
+
+                showAlert(("The word most similar in meaning<br>" +
+                           "to <b>'" + frame.probe+"'</b> is <b>'"+frame.target+"'</b>.<br>" +
+                           "<br>You should click '<b>" + frame.target + "</b>'.<br><br>"),
+                           "Click here to retry",
+                           function()
+                           {
+                               showFrame("null");
+                               nextTrial();
+                           },
+                           '20pt');
+            }
+            else
+            {
+            	// mark trial as NOT repeated for next attempt
+            	repeated = 0;
+            
+                showFrame("null");
+                nextTrial();
+            }
+        }
+        else if(frame.type === "test")
+        {
+            // if the input event returns a timeout,
+            // stop the sequence and advise the participant
+            if(isTimeout)
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+                pairsCount--;
+                
+                // mark trial as repeated for next attempt
+                repeated = 1;
+
+                showAlert("You are taking too long to respond.<br><br>" +
+                          "You should click the word<br>"+
+                          "most similar in meaning to '<b>" + frame.probe + "</b>'.</b><br><br>",
+                          "Click here to retry",
+                          function()
+                          {
+                              showFrame("null");
+                              nextTrial();
+                          },
+                          '20pt');
+            }
+            else
+            {
+            	// mark trial as NOT repeated for next attempt
+            	repeated = 0;
+            
+                showFrame("null");
+                nextTrial();
+            }
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame)
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                  "Click here for instructions",
+                                                  function ()
+                                                  {
+                                                      showFrame("null");
+                                                      nextTrial();
+                                                  },
+                                                  '20pt');
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                         "Click here to continue",
+                                                         function ()
+                                                         {
+                                                             showFrame("null");
+                                                             nextTrial();
+                                                         },
+                                                         '20pt');
+            // deal with practice and test frames
+            else
+            {
+                ch = chainTimeouts(
+                function()
+                {
+                    requestAnimationFrame(function()
+                    {
+                        if (frame.type === "test")
+                        {
+                            pairsCount++;
+                            getID("counter").innerHTML = "<b>" + pairsCount +
+                                                         " of " + wordPairs.length +
+                                                         "</b>";
+                        }
+                        else
+                        {
+                            getID("counter").innerHTML = "<b>Practice</b>";
+                        }
+                        showFrame("counter");
+                    });
+                },
+                ISI,
+                function()
+                {
+                    requestAnimationFrame(function()
+                    {
+                        getID("probe").innerHTML = frame.probe.toUpperCase() + " = ?";
+                        getID("choice1").innerHTML = "1. " + frame.choice1.toUpperCase();
+                        getID("choice2").innerHTML = "2. " + frame.choice2.toUpperCase();
+                        getID("choice3").innerHTML = "3. " + frame.choice3.toUpperCase();
+                        getID("choice4").innerHTML = "4. " + frame.choice4.toUpperCase();
+                        getID("choice5").innerHTML = "5. " + frame.choice5.toUpperCase();
+                        showFrame("counter", "probe", "choice");
+                        tmbUI.getInput();
+                    });
+                });
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            //compute outcomes
+            var tmp1, tmp2, tmp3, tmp4;
+
+            // all test trials (excluding practice and timeouts)
+            tmp1 = results.filter(function( obj ) {return obj.type !== 'practice' &&
+                                                          obj.state !== 'timeout';});
+
+            // all correct rts
+            tmp2 = tmp1.filter(function( obj ) {return obj.correct === 1;});
+            tmp3 = tmp2.pluck("rt");
+
+            // response device
+            tmp4 = tmp1[0].state;
+            tmp4 = /key/i.test(tmp4) ? 'keyboard' :
+                   /touch/i.test(tmp4) ? 'touch' :
+                   /mouse/i.test(tmp4) ? 'mouse' :
+                   /pen/i.test(tmp4) ? 'pen' :
+                   'unknown';
+
+            score = tmp3.length;
+            outcomes.score = score;
+            outcomes.accuracy = tmp2.length / tmp1.length;
+            outcomes.meanRTc = tmp3.length ? tmp3.average().round(2) : null;
+            outcomes.medianRTc = tmp3.length ? tmp3.median().round(2) : null;
+            outcomes.sdRTc = tmp3.length > 1 ? tmp3.sd().round(2) : null;
+            outcomes.flag_medianRTc = outcomes.medianRTc >= 2000 ? 0 : 1;
+            outcomes.flag_any = outcomes.flag_medianRTc > 0 ? 1 : 0;
+            outcomes.responseDevice = tmp4;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "VocabResults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                showAlert("Test complete!",
+                          "",
+                          function ()
+                          {
+                          },
+                          '20pt');
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage, i;
+
+        if(demo === 'true') wordPairs.splice(4);
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>Vocabulary Test</h2>" +
+                      "PERSON = HUMAN<br><br><br>"),
+            "instructions": [("<h3>Instructions:</h3>" +
+                              "PERSON = ?<br><br>" +
+                              "Let's see how many words you know.<br><br>"),
+                             ("<h3>Instructions:</h3>" +
+                              "PERSON = ?<br><br>" +
+                              "For practice, click the word<br>" +
+                              "most similar in meaning to PERSON.<br>" +
+                              "(hint: it's HUMAN!)<br><br>"),
+                             ("Excellent!<br><br>" +
+                              "There are " + wordPairs.length +" more words.<br><br>" +
+                              "Let's start!<br><br>")]
+        };
+
+        // type of frame to display
+        var frameType = ["begin","message","message","practice","message"];
+
+        // message to display
+        var frameMessage = [testMessage.begin,
+                            testMessage.instructions[0],
+                            testMessage.instructions[1],
+                            "",
+                            testMessage.instructions[2]];
+
+        // words to display
+        var frameProbe = ["","","","person",""];
+        var frameTarget = ["","","","human",""];
+        var frameChoice1 = ["","","","chair",""];
+        var frameChoice2 = ["","","","persuade",""];
+        var frameChoice3 = ["","","","handle",""];
+        var frameChoice4 = ["","","","human",""];
+        var frameChoice5 = ["","","","identical",""];
+
+        // push all components into the frames chain
+        for(i = 0; i < frameType.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: frameType[i],
+                message: frameMessage[i],
+                probe: frameProbe[i],
+                target: frameTarget[i],
+                choice1: frameChoice1[i],
+                choice2: frameChoice2[i],
+                choice3: frameChoice3[i],
+                choice4: frameChoice4[i],
+                choice5: frameChoice5[i]
+            });
+        }
+
+        for(i = 0; i < wordPairs.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: "test",
+                message: "",
+                probe: wordPairs[i].probe,
+                target: wordPairs[i].target,
+                choice1: wordPairs[i].choice1,
+                choice2: wordPairs[i].choice2,
+                choice3: wordPairs[i].choice3,
+                choice4: wordPairs[i].choice4,
+                choice5: wordPairs[i].choice5
+            });
+        }
+
+        // start the trial sequence
+        nextTrial();
+    }
+
+    // this is the input file's parser: it builds a JSON object
+    // from the instructions and material in the file
+    function parseFile(text)
+    {
+        // parse the input file
+        if(text)
+        {
+            var lines, words = [], errors = 0;
+
+            // Parse the file's text into lines by splitting on 'newline'.
+            // (do not use regexp, e.g. /\r?\n/, because ie8 throws up)
+            lines = text.split("\n");
+
+            // parse each line into words by splitting on 'whitespace'
+            for (var i = 0; i < lines.length; i++)
+            {
+                // first check if this line is a comment (starts with '*'?)
+                if(lines[i].charAt(0) === "*") continue;
+
+                // split on DOUBLE 'whitespace'
+                words = lines[i].split("  ");
+
+                // sanitize the words, so there are no linefeeds at the end
+                words = words.map(function(s) { return s.trim() });
+
+                // save probe, target and choice words, or stop and report an error
+                if(words.length === 7) wordPairs.push({probe: words[0],
+                                                      target: words[1],
+                                                      choice1: words[2],
+                                                      choice2: words[3],
+                                                      choice3: words[4],
+                                                      choice4: words[5],
+                                                      choice5: words[6]});
+                else
+                {
+                    errors++;
+                    break;
+                }
+            }
+
+            if(errors)
+            {
+                showAlert("parseFile: Incorrect formatting of line " + (i+1) + ".<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else if(wordPairs.length === 0)
+            {
+                showAlert("parseFile: Error parsing input file's content.<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else setFrameSequence();
+        }
+        else showAlert("ajaxRequest: Error reading input file.<br><br>",
+                       "",
+                       null,
+                       '20pt');
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+        
+        // add appropriate meta viewport for scaling
+        setBodyScale(600,650);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>input=testInput.txt</i> -- word pairs input file<br>" +
+                "<i>timeoutDuration=30000</i> -- duration (ms) until timeout message appears<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>demo=true</i> -- runs in demo mode, only a few test trials<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+            document.getElementById('helpSpan').style.textAlign = 'left';
+            document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // specify the input file
+        inputFile = getUrlParameters("input", "", true);
+        if(!inputFile) inputFile = "VocabInput_30items_moderate_1.txt";
+
+        // check if they want a demo run
+        demo = getUrlParameters("demo", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+        
+        // get the timeout duration (ms) from url parameters (default = 30000)
+        timeoutDuration = getUrlParameters("timeoutDuration", "", true);
+        if (!(timeoutDuration = parseInt(timeoutDuration))) timeoutDuration = 30000;
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // determine events to listen to
+        if(hasTouch || hasPointer) tmbUI.UIevents = ['taps','clicks','keys'];
+        else tmbUI.UIevents = ['clicks', 'keys'];
+        tmbUI.UIkeys = [keyToCode('1'),keyToCode('2'),keyToCode('3'),keyToCode('4'),keyToCode('5'),
+        				keyToCode('numpad1'),keyToCode('numpad2'),keyToCode('numpad3'),
+                        keyToCode('numpad4'),keyToCode('numpad5')];
+        tmbUI.UIelements = ['choice1','choice2','choice3','choice4','choice5',
+        					'choice1','choice2','choice3','choice4','choice5'];
+        tmbUI.highlight = "responseHighlight";
+        tmbUI.timeout = timeoutDuration;
+
+        // disable spurious user interaction
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        // read the input file and call the parser
+        ajaxRequest({url: inputFile,
+                     async: true,
+                     callback: parseFile});
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <!-- this DIV shows the count of word pairs already seen -->
+    <div id="counter"></div>
+
+    <!-- this DIV shows the probe word -->
+    <div id="probe""></div>
+
+    <!-- this DIV shows the choice words -->
+    <div id="choice">
+        <span class="choiceWord" id="choice1"></span><br><br>
+        <span class="choiceWord" id="choice2"></span><br><br>
+        <span class="choiceWord" id="choice3"></span><br><br>
+        <span class="choiceWord" id="choice4"></span><br><br>
+        <span class="choiceWord" id="choice5"></span>
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it --------->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

@@ -1,0 +1,30 @@
+* This is an input file to the TEST component of the Verbal Paired Associates Test
+* Each line must contain a probe word, its associated target and 4 choice words
+* The word separator is whitespace
+* Lines beginning with * are ignored
+* PROBE TARGET CHOICE-1 CHOICE-2 CHOICE-3 CHOICE-4
+chance impulse essence intellect distinction impulse
+animosity knowledge intellect malice knowledge suppression
+ability devotion suppression safety hope devotion
+attitude bravery grief confidence bravery malice
+violation fate fate bravery knowledge welfare
+opinion grief freedom grief safety predicament
+interest predicament predicament suppression madness necessity
+facility hope passion inducement hope welfare
+gratitude distinction devotion necessity distinction knowledge
+satire necessity necessity essence safety method
+spirit attribute love attribute devotion fate
+loyalty inducement inducement fate predicament essence
+disposition freedom attribute malice freedom passion
+perception malice confidence malice ingratitude distinction
+soul confidence knowledge confidence impulse love
+immunity love ingratitude freedom fate love
+jealousy intellect love inducement intellect madness
+thought safety safety necessity attribute method
+recognition ingratitude passion hope intellect ingratitude
+vanity essence predicament attribute madness essence
+discipline madness grief freedom ingratitude madness
+pride method welfare inducement bravery method
+glory suppression suppression impulse distinction bravery
+pleasure welfare method welfare confidence grief
+theory passion impulse passion distinction devotion

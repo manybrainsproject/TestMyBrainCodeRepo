@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Matrix Reasoning">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB Matrix">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+      Matrix.html?help
+
+     For reference see:
+
+      Raven, J., & Raven, J. (eds.) (2008) Uses and Abuses of Intelligence:
+        Studies Advancing Spearman and Raven’s Quest for Non-Arbitrary Metrics.
+        Unionville, New York: Royal Fireworks Press.
+
+     Notes:
+
+      With no input parameters or when stoppingRule = true, the test stops after
+      3 consecutive errors, or when all items are completed. When input
+      parameter stoppingRule = false, the stopping rule is not enforced and all
+      trials are completed.
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Visual Patterns</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <style>
+
+        *
+        {
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        *::after, *::before
+        {
+            box-sizing: border-box;
+        }
+        
+        html
+		{
+			width: 100vw;
+			height: 100vh;
+		}
+
+        body
+        {
+            width: 100vw;
+            height: 100vh;
+            margin: auto;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 13pt;
+            text-align: center;
+        }
+
+        #counter
+        {
+            height: 50px;
+            width: 200px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -250px;
+            margin-left: -100px;
+            text-align: center;
+            font-size: 20pt;
+            display: none;
+        }
+
+        .image
+        {
+            border: 5px solid transparent;
+            height: 120px;
+        }
+
+        .matrix
+        {
+            border: 5px solid transparent;
+            max-height: 200px;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #matrixContainer
+        {
+            height: 300px;
+            width: 700px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -200px;
+            margin-left: -350px;
+            text-align: center;
+            display: none;
+        }
+
+        #responseContainer
+        {
+            width: 450px;
+            height: 150px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: 100px;
+            margin-left: -225px;
+            display: none;
+        }
+
+        .button
+        {
+            border: 2px solid #f1c40f;
+            border-radius: 1em;
+            background: transparent;
+            color: #000000;
+            box-shadow: 0 5px 15px 5px grey
+        }
+
+        .button:active
+        {
+            box-shadow: 0 5px 15px 1px lightgrey
+        }
+
+        .button:focus
+        {
+            outline: none
+        }
+        
+        .responseHighlight
+        {
+            border: 5px solid red;
+        }
+
+    </style>
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.Oct23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var testVersion;        // version identifier for this test
+    var images = [];        // array of all images
+    var imagePairs = [];    // array of probe-target image pairs
+    var pairsCount = 0;     // count of already seen image pairs
+    var ISI = 300;          // inter-stimulus interval
+    var correct;            // correct=1, wrong=0
+    var errorsInARow = 0;   // error counter,used for stopping rule (3 sequential errors)
+    var ch;                 // timeouts chain
+    var repeated = 0;		// variable for logging whether trials have been repeated
+    var score = 0;          // accumulated score
+    var results = [];       // array to store trials details and responses
+    var outcomes = {};      // object containing outcome variables
+    var frameSequence = []; // object containing the sequence of frames and their properties
+    var frame;              // single frame object
+    var inputFile;          // URL parameter: file containing probe-target image pairs
+    var debug;              // URL parameter: output to console
+    var showresults;        // URL parameter: if they want to show results in a popup window
+    var autosave;           // URL parameter: if they want to save data in a file automatically
+    var timeoutDuration;    // URL parameter: timeout duration in ms (default = 300000 ms = 5 minutes)
+    var stoppingRule;       // URL parameter: should the 3 miss stopping rule be used? (true/false, default = true)
+    var filename;           // filename for data
+    var usage = "";         // URL parameter: show usage
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        var choice, isTimeout;
+
+        // if the timeouts chain is still running, clear it
+        if(ch) clearChainTimeouts(ch);
+
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+        
+        // was this trial a timeout?
+        isTimeout = tmbUI.status === "timeout";
+        
+        // retrieve which image they chose
+        if(tmbUI.response)
+        {
+        	if(tmbUI.status === 'keyup')
+            {
+            	choice = getID('choice' + tmbUI.response.replace('numpad', '')).getAttribute("src");
+            }
+            else
+            {
+            	choice = getID(tmbUI.response).getAttribute("src");
+            }
+        }
+        else choice = "none";
+
+        // is the response correct?
+        correct = (choice === frame.target) ? 1 : 0;
+
+        results.push(
+        {
+            type: frame.type, // one of practice or test
+            matrix: frame.matrix,  // matrix image shown
+            target: frame.target, // target image
+            response: choice, // image chosen by the user
+            responseTimestamp: now(), // time of response, ms since page load
+            correct: isTimeout ? null : correct, // boolean correct
+            rt: isTimeout ? null : tmbUI.rt, // response time
+            repeated: repeated, // whether or not this was a repeated trial
+            state: tmbUI.status // state of the response handler
+        });
+
+        // if we are debugging, log the results
+        if(debug === 'true') logResults(results,'inc');
+
+        if(frame.type === "practice")
+        {
+            // on practice trials, if the input event returns a timeout
+            // or the response is not correct,
+            // stop the sequence and advise the participant
+            if(isTimeout || !correct)
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+                
+                // log next trial as repeated
+                repeated = 1;
+
+                showAlert("<img src='images/example3.png'><br><br>" +
+                          "You should click the image <br>" +
+                          "that best completes the pattern.<br><br>",
+                          "Click here to retry",
+                          function()
+                          {
+                              showFrame("null");
+                              nextTrial();
+                          },
+                          '20pt');
+            }
+            else
+            {
+            	// log next trial as not repeated
+                repeated = 0;
+                
+                showFrame("null");
+                nextTrial();
+            }
+        }
+        else if(frame.type === "test")
+        {
+            // if the input event returns a timeout,
+            // stop the sequence and advise the participant
+            if(isTimeout)
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+                pairsCount--;
+                
+                // log next trial as repeated
+                repeated = 1;
+
+                showAlert("You are taking too long to respond.<br><br>" +
+                          "You should click the image <br>"+
+                          "that best completes the pattern.<br><br>",
+                          "Click here to retry",
+                          function()
+                          {
+                              showFrame("null");
+                              nextTrial();
+                          },
+                          '20pt');
+            }
+            else
+            {
+                // on error, increment the sequential error counter
+                // on 3rd sequential error, we abort in nextTrial
+                if (!correct) errorsInARow++;
+                else errorsInARow = 0;
+                
+                // log next trial as not repeated
+                repeated = 0;
+
+                showFrame("null");
+                nextTrial();
+            }
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame && (errorsInARow < 3 || !stoppingRule))
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                  "Click here for instructions",
+                                                  function ()
+                                                  {
+                                                      showFrame("null");
+                                                      nextTrial();
+                                                  },
+                                                  '20pt');
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                         "Click here to continue",
+                                                         function ()
+                                                         {
+                                                             showFrame("null");
+                                                             nextTrial();
+                                                         },
+                                                         '20pt');
+            // deal with practice and test frames
+            else
+            {
+                ch = chainTimeouts(
+                function()
+                {
+                    if(frame.type === "test")
+                    {
+                        pairsCount++;
+                        getID("counter").innerHTML = "<b>" + pairsCount + " of " +
+                                                     imagePairs.length + "</b>";
+                    }
+                    else
+                    {
+                        getID("counter").innerHTML = "<b>Practice</b>";
+                    }
+                    showFrame("counter");
+                },
+                ISI,
+                function()
+                {
+                    getID("matrix").src = frame.matrix;
+                    getID("choice1").src = frame.choice1;
+                    getID("choice2").src = frame.choice2;
+                    getID("choice3").src = frame.choice3;
+                    getID("choice4").src = frame.choice4;
+                    getID("choice5").src = frame.choice5;
+                    showFrame("counter","matrixContainer","responseContainer");
+                    tmbUI.getInput();
+                });
+            }
+        }
+        // if we are here, either they made 3 consecutive errors,
+        // or the sequence is empty, we are done!
+        else
+        {
+            //compute outcomes
+            var tmp1, tmp2, tmp3, tmp4;
+
+            // all test trials (excluding practice and timeouts)
+            tmp1 = results.filter(function( obj )
+            {
+                return obj.type !== 'practice' &&
+                       obj.state !== 'timeout';
+            });
+
+            // all correct test trials
+            tmp2 = tmp1.filter(function( obj ) {return obj.correct === 1;});
+
+            // all correct rts
+            tmp3 = tmp2.pluck("rt");
+
+            // response device
+            tmp4 = tmp1[0].state;
+            tmp4 = /key/i.test(tmp4) ? 'keyboard' :
+                   /touch/i.test(tmp4) ? 'touch' :
+                   /mouse/i.test(tmp4) ? 'mouse' :
+                   /pen/i.test(tmp4) ? 'pen' :
+                   'unknown';
+
+            score = outcomes.score = tmp2.length;
+
+            outcomes.accuracy = tmp2.length ? (tmp2.length / imagePairs.length).round(4) : 0;
+            outcomes.meanRTc = tmp3.length ? tmp3.average().round(2) : null;
+            outcomes.medianRTc = tmp3.length ? tmp3.median().round(2) : null;
+            outcomes.sdRTc = tmp3.length > 1 ? tmp3.sd().round(2) : null;
+            outcomes.flag_medianRTc = outcomes.medianRTc >= 1000 ? 0 : 1;
+            outcomes.flag_any = outcomes.flag_medianRTc > 0 ? 1 : 0;
+            outcomes.responseDevice = tmp4;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // if we save locally, append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "MatrixResults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                showAlert("Test complete!",
+                          "",
+                          function ()
+                          {
+                          },
+                          '20pt');
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage, i;
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>Visual Patterns</h2>" +
+                      "<img src='images/example1.png'><br><br>"),
+            "instructions": [("<h3>Instructions:</h3>" +
+                              "<img src='images/example1.png'><br><br>" +
+                              "This pattern is missing one image.<br><br>"),
+                             ("<img src='images/example2.png'><br><br>" +
+                              "The image that best completes the pattern <br>" +
+                              "is this one on the right.<br><br>"),
+                             ("<h3>Instructions:</h3>" +
+                              "<img src='images/example3.png'><br><br>" +
+                              "Now let's practice selecting the image <br> " +
+                              "that best completes the pattern.<br><br>"),
+                             ("Excellent!<br><br>" +
+                              "There will now be up to " + imagePairs.length + " more<br>" +
+                              "image pattern completions.<br><br>" +
+                              "Let's start!<br><br>")]
+        };
+
+        // type of frame to display
+        var frameType = ["begin","message","message","message","practice","message"];
+
+        // message to display
+        var frameMessage = [testMessage.begin,
+                            testMessage.instructions[0],
+                            testMessage.instructions[1],
+                            testMessage.instructions[2],
+                            "",
+                            testMessage.instructions[3]];
+
+        // images to display
+        var frameMatrix = ["","","","","images/1.png",""];
+        var frameTarget = ["","","","","images/1-3.png",""];
+        var frameChoice1 = ["","","","","images/1-1.png",""];
+        var frameChoice2 = ["","","","","images/1-2.png",""];
+        var frameChoice3 = ["","","","","images/1-3.png",""];
+        var frameChoice4 = ["","","","","images/1-4.png",""];
+        var frameChoice5 = ["","","","","images/1-5.png",""];
+
+        // push all components into the frames chain
+        for(i = 0; i < frameType.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: frameType[i],
+                message: frameMessage[i],
+                matrix: frameMatrix[i],
+                target: frameTarget[i],
+                choice1: frameChoice1[i],
+                choice2: frameChoice2[i],
+                choice3: frameChoice3[i],
+                choice4: frameChoice4[i],
+                choice5: frameChoice5[i]
+            });
+        }
+
+        for(i = 0; i < imagePairs.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: "test",
+                message: "",
+                matrix: 'images/' + imagePairs[i].matrix,
+                target: 'images/' + imagePairs[i].target,
+                choice1: 'images/' + imagePairs[i].choice1,
+                choice2: 'images/' + imagePairs[i].choice2,
+                choice3: 'images/' + imagePairs[i].choice3,
+                choice4: 'images/' + imagePairs[i].choice4,
+                choice5: 'images/' + imagePairs[i].choice5
+            });
+        }
+
+        // start the trial sequence
+        nextTrial();
+    }
+
+    // this is the input file's parser: it builds a JSON object
+    // from the instructions and material in the file
+    function parseFile(text)
+    {
+        // parse the input file
+        if(text)
+        {
+            var lines, words = [], errors = 0;
+
+            // Parse the file's text into lines by splitting on 'newline'.
+            // (do not use regexp, e.g. /\r?\n/, because ie8 throws up)
+            lines = text.split("\n");
+
+            // parse each line into words by splitting on 'whitespace'
+            for (var i = 0; i < lines.length; i++)
+            {
+                // first check if this line is a comment (starts with '*'?)
+                if(lines[i].charAt(0) === "*") continue;
+
+                // split on 'whitespace'
+                words = lines[i].split(" ");
+
+                // sanitize the words, so there are no linefeeds at the end
+                words = words.map(function(s) { return s.trim() });
+
+                // save matrix, target and choice images, or stop and report an error
+                if(words.length === 7) imagePairs.push(
+                {
+                    matrix: words[0],
+                    target: words[1],
+                    choice1: words[2],
+                    choice2: words[3],
+                    choice3: words[4],
+                    choice4: words[5],
+                    choice5: words[6]
+                });
+                else
+                {
+                    errors++;
+                    break;
+                }
+            }
+
+            if(errors)
+            {
+                showAlert("parseFile: Incorrect formatting of line " + (i+1) + ".<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else if(imagePairs.length === 0)
+            {
+                showAlert("parseFile: Error parsing input file's content.<br><br>",
+                          "",
+                          null,
+                          '20pt');
+            }
+            else
+            {
+                images = imagePairs.pluck('matrix').concat(imagePairs.pluck('target'));
+                images = images.concat(imagePairs.pluck('choice1'))
+                               .concat(imagePairs.pluck('choice2'));
+                images = images.concat(imagePairs.pluck('choice3'))
+                               .concat(imagePairs.pluck('choice4'));
+                images = images.concat(imagePairs.pluck('choice5'));
+                images = images.concat(['example1.png','example2.png','example3.png']);
+                images = images.concat(['1.png','1-1.png','1-2.png','1-3.png',
+                                        '1-4.png','1-5.png']);
+                images = images.map(function(a){return('images/' + a)});
+                images = images.unique();
+                imagePreLoad(images,{pipeline: false, callBack: setFrameSequence});
+            }
+        }
+        else showAlert("ajaxRequest: Error reading input file.<br><br>",
+                       "",
+                       null,
+                       '20pt');
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+        
+        // add appropriate meta viewport for scaling
+        setBodyScale(600,700);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>input=testInput.txt</i> -- matrix input file<br>" +
+                "<i>stoppingRule=true</i> -- whether to stop test after 3 consecutive misses<br>" +
+                "<i>timeoutDuration=300000</i> -- duration (ms) until timeout message appears<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+                document.getElementById('helpSpan').style.textAlign = 'left';
+                document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // specify the input file
+        inputFile = getUrlParameters("input", "", true);
+        if(!inputFile) inputFile = "MatrixInput_36items.txt";
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+        
+        // get the timeout duration from url parameters (default = 300000)
+        timeoutDuration = getUrlParameters("timeoutDuration", "", true);
+        if (!(timeoutDuration = parseInt(timeoutDuration))) timeoutDuration = 300000;
+        
+        // get the stopping rule from url parameters (default = use stopping rule)
+        stoppingRule = getUrlParameters("stoppingRule", "", true);
+        if(!stoppingRule || stoppingRule === 'true')
+        {
+        	stoppingRule = true;
+        } 
+        else if (stoppingRule === 'false')
+        {
+        	stoppingRule = false;
+        } 
+        else 
+        {
+        	showAlert("Error: Invalid value for url parameter 'stoppingRule'<br><br>" +
+                      "Must be 'true' or 'false'<br><br>",
+                       "",
+                       null,
+                       '20pt');
+            return;
+        }
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // determine events to listen to
+        if(hasTouch || hasPointer) tmbUI.UIevents = ['taps','clicks','keys'];
+        else tmbUI.UIevents = ['clicks','keys'];
+        tmbUI.UIkeys = [keyToCode('1'),keyToCode('2'),
+                        keyToCode('3'),keyToCode('4'),keyToCode('5'),
+                        keyToCode('numpad1'),keyToCode('numpad2'),keyToCode('numpad3'),
+                        keyToCode('numpad4'),keyToCode('numpad5')];
+        tmbUI.UIelements = ['choice1','choice2','choice3','choice4','choice5',
+        					'choice1','choice2','choice3','choice4','choice5'];
+        tmbUI.highlight = "responseHighlight";
+        tmbUI.timeout = timeoutDuration;
+
+        // disable spurious user interaction
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        // read the input file and call the parser
+        ajaxRequest({url: inputFile,
+                     async: true,
+                     callback: parseFile});
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <!-- this DIV shows the count of image pairs already seen -->
+    <div id="counter"></div>
+
+    <!-- this DIV shows the matrix image -->
+    <div id="matrixContainer">
+        <img id="matrix" class="matrix" src="" alt="matrix">
+    </div>
+
+    <!-- this DIV shows the response alternatives -->
+    <div id="responseContainer">
+        <img id="choice1" class="image" src="" alt="choice1">
+        <img id="choice2" class="image" src="" alt="choice2">
+        <img id="choice3" class="image" src="" alt="choice3">
+        <img id="choice4" class="image" src="" alt="choice4">
+        <img id="choice5" class="image" src="" alt="choice5">
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it --------->
+    <noscript>
+    For full functionality of this site it is necessary to enable JavaScript.<br>
+    Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+    instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>

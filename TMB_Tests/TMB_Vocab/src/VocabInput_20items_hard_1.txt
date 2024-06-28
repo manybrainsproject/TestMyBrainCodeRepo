@@ -1,0 +1,25 @@
+* This is an input file to the Vocabulary Test
+* Each line must contain a probe word, its associated target and 5 choice words
+* The word separator is DOUBLE 'whitespace'
+* Lines beginning with '*' are ignored
+* PROBE TARGET CHOICE-1 CHOICE-2 CHOICE-3 CHOICE-4 CHOICE-5
+adhesive  glue  glue  puissance  tradition  argument  latent
+dreary  gloomy  old  bloom  gloomy  correct  possible
+meager  bare  level  burnt  new  bare  peevish
+adherence  devotion  existence  devotion  relation  slippery  proof
+deprecate  hate  quit  clean  hate  save  help
+halcyon  peaceful  plain  eclectic  inhumane  stirring  peaceful
+pachyderm  elephant  giraffe  ostrich  platypus  elephant  whale
+truth  fact  neighbor  criminal  midnight  offering  fact
+rejoice  revel  conserve  risk  revel  automatic  slash
+potation  drink  disappearance  drink  farming  rivalry  game
+piquant  flavorful  expert  steam  nosy  flavorful  hurt
+acolyte  church helper  musician  savior  church helper  manager  speak
+covenant  pact  pact  noise  agent  ceremony  aria
+dormant  latent  insane  latent  swimming  cave  mortal
+cruel  mean  mobile  pliant  pensive  mean  passive
+hermetic  completely sealed  completely sealed  purple  reclusive  princely  peppery
+chuckle  laugh  laugh  haul  valuable  stub  prod
+abbattoir  killing place  hawk  killing place  slot  culprit  stronghold
+vittles  food  conversation  avoidance  belief  prayer  food
+skirmish  fight  compete  travel  sail  absentee  fight

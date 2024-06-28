@@ -1,0 +1,30 @@
+* This is an input file to the TEST component of the Visual Pair Associates Test
+* In this version of the input file, barn4.jpg (American flag barn) is replaced by barn9.jpg.
+* Each line must contain a probe image, its associated target and 5 choice images
+* The word separator is 'whitespace'
+* Lines beginning with '*' are ignored
+* PROBE TARGET CHOICE-1 CHOICE-2 CHOICE-3 CHOICE-4 CHOICE-5
+barn1.jpg barn9.jpg barn6.jpg barn7.jpg barn9.jpg barn5.jpg barn8.jpg
+lobby1.jpg lobby4.jpg lobby7.jpg lobby8.jpg lobby5.jpg lobby6.jpg lobby4.jpg
+bath1.jpg bath4.jpg bath5.jpg bath8.jpg bath4.jpg bath6.jpg bath7.jpg
+temple1.jpg temple4.jpg temple8.jpg temple6.jpg temple5.jpg temple4.jpg temple7.jpg
+playground1.jpg playground4.jpg playground5.jpg playground4.jpg playground8.jpg playground7.jpg playground6.jpg
+entry1.jpg entry4.jpg entry8.jpg entry5.jpg entry6.jpg entry4.jpg entry7.jpg
+field1.jpg field4.jpg field6.jpg field8.jpg field5.jpg field7.jpg field4.jpg
+underwater1.jpg underwater4.jpg underwater5.jpg underwater4.jpg underwater7.jpg underwater6.jpg underwater8.jpg
+barn2.jpg barn5.jpg barn6.jpg barn7.jpg barn9.jpg barn5.jpg barn8.jpg
+lobby2.jpg lobby5.jpg lobby7.jpg lobby8.jpg lobby5.jpg lobby6.jpg lobby4.jpg
+bath2.jpg bath5.jpg bath5.jpg bath8.jpg bath4.jpg bath6.jpg bath7.jpg
+temple2.jpg temple5.jpg temple8.jpg temple6.jpg temple5.jpg temple4.jpg temple7.jpg
+playground2.jpg playground5.jpg playground5.jpg playground4.jpg playground8.jpg playground7.jpg playground6.jpg
+entry2.jpg entry5.jpg entry8.jpg entry5.jpg entry6.jpg entry4.jpg entry7.jpg
+field2.jpg field5.jpg field6.jpg field8.jpg field5.jpg field7.jpg field4.jpg
+underwater2.jpg underwater5.jpg underwater5.jpg underwater4.jpg underwater7.jpg underwater6.jpg underwater8.jpg
+barn3.jpg barn6.jpg barn6.jpg barn7.jpg barn9.jpg barn5.jpg barn8.jpg
+lobby3.jpg lobby6.jpg lobby7.jpg lobby8.jpg lobby5.jpg lobby6.jpg lobby4.jpg
+bath3.jpg bath6.jpg bath5.jpg bath8.jpg bath4.jpg bath6.jpg bath7.jpg
+temple3.jpg temple6.jpg temple8.jpg temple6.jpg temple5.jpg temple4.jpg temple7.jpg
+playground3.jpg playground6.jpg playground5.jpg playground4.jpg playground8.jpg playground7.jpg playground6.jpg
+entry3.jpg entry6.jpg entry8.jpg entry5.jpg entry6.jpg entry4.jpg entry7.jpg
+field3.jpg field6.jpg field6.jpg field8.jpg field5.jpg field7.jpg field4.jpg
+underwater3.jpg underwater6.jpg underwater5.jpg underwater4.jpg underwater7.jpg underwater6.jpg underwater8.jpg

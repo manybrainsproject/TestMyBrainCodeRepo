@@ -1,0 +1,30 @@
+* This is an input file to the TEST component of the Verbal Paired Associates Test
+* Each line must contain a probe word, its associated target and 4 choice words
+* The word separator is whitespace
+* Lines beginning with * are ignored
+* PROBE TARGET CHOICE-1 CHOICE-2 CHOICE-3 CHOICE-4
+maple cheese apple quarter lemon cheese
+library slide graph medicine flower slide
+bucket picture frost picture magnet triangle
+battle capsule asparagus cucumber capsule college
+mixer grave grave slide magnet referee
+insect brandy product pillow musician brandy
+human mountain straw mountain author asparagus
+essay rocket rocket cotton brush picture
+guard triangle triangle brandy phone husband
+morning skirt chipmunk shell skirt soldier
+grass straw spade queen gravy straw
+hospital chalk husband medicine chalk shore
+garbage harbor chalk harbor ceiling apple
+tennis chipmunk onion chipmunk brush rocket
+burner diamond diamond product referee cheese
+liquid policeman musician policeman onion mountain
+cattle garden harbor garden graph audience
+pedal college drink queen cotton college
+court shore phone sunshine money shore
+children drink drink capsule ceiling cloud
+balloon gravy garden ceiling gravy soldier
+truck lemon frost diamond lemon spade
+mouse money policeman sunshine money audience
+poster flower skirt flower author shell
+house pillow pillow cucumber quarter grave

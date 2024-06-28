@@ -1,0 +1,30 @@
+* This is an input file to the TEST component of the Verbal Pair Associates Test
+* Each line must contain a probe word, its associated target and 4 choice words
+* The word separator is 'whitespace'
+* Lines beginning with '*' are ignored
+* PROBE TARGET CHOICE-1 CHOICE-2 CHOICE-3 CHOICE-4
+woman potato potato bread spider closet
+student couch lake kettle forest couch
+beverage laundry glass paint detective laundry
+guest bread elbow lemonade bread family
+blonde ocean ocean closet dentist lake
+soccer dentist lawyer weapon window dentist
+cocktail cement floor cement church family
+officer kettle lettuce dollar doctor kettle
+beach mustard tunnel ticket bubble mustard
+piano walrus forest radio walrus ticket
+organ lettuce monkey movie couch lettuce
+candle umbrella mother envelope sauce umbrella
+spoon disease sauce potato tunnel disease
+horse choir ocean choir church envelope
+torch zipper disease dress zipper material
+garlic bubble bubble newspaper doctor dollar
+tourist newspaper window banana newspaper choir
+nurse radio spider radio lemonade umbrella
+column tulip wallet dress tulip helmet
+flame mother mother cousin detective zipper
+animal glass glass monkey walrus banana
+rabbit weapon rubber laundry lettuce weapon
+shark floor floor lawyer tulip helmet
+mirror wallet cement wallet movie cousin
+fruit elbow mustard paint elbow material
