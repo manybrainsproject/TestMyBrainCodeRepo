@@ -21,24 +21,12 @@ References:
 
 2. The Many Brains Project. TestMyBrain Cognitive Tests. URL: www.manybrains.net
 
-
-
-
 ## Getting Started
-​
 ### Dependencies
-​
+
 The cognitive tests available in this repository are intended to be administered on the web and require a web server for hosting all the included files
 
-
-
-
 ### Folder Structure
-
-
-
-
-
 
 Each cognitive test is stored in a separate folder. Each test folder may contain the following:
 * A docs folder:
@@ -50,20 +38,17 @@ Each cognitive test is stored in a separate folder. Each test folder may contain
    * Text (.txt) files used as input for the test
    * image files used in the test
 
-
-​
 ### Installing
 ​
 Deploy the source files using any standardized process to a web server.
-​
-​
-​## Contact
 
+
+## Contact
 
 If you are in need of technical infrastructure for administering these tests, please contact info@manybrains.net.
-​
-## License
 
+
+## License
 
 The cognitive test code and the TestMyBrain.js library are distributed under a GNU LGPLv3 license:
 
