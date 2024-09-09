@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Digit Symbol Matching">
+    <meta name="copyright" content="2023 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test, digit-symbol coding">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=contain">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB DSC">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2024 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+      DSC.html?help
+
+     For reference see:
+
+      Thorndike, E. A standardized group examination of intelligence
+        independent of language. J. of Applied Psych, 1919, 3(1), 13-32.
+
+      Wechsler, D. (1981). Manual for the Wechsler Adult Intelligence
+        Scale - Revised. New York: Psychological Corporation.
+
+      McLeod et Al. An automated version of the digit symbol substitution
+        test. Behav. Res. Meth. & Instr. 1982, 14(5), 463-466
+
+      Salthouse, T.A., What do adult age differences in the digit symbol
+        substitution test reflect? J. of Gerontology, 1992, 47(3), 121-128
+
+     Notes:
+
+      On each trial, symbol choice is pseudo-random with lag 1 repetition
+      avoidance. RT outcomes are calculated on correct responses. Available
+      input is keyboard and touch.
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Digit Symbol Matching</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <style>
+
+        *
+        {
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        *::after, *::before
+        {
+            box-sizing: border-box;
+        }
+        
+        html
+		{
+			width: 100vw;
+			height: 100vh;
+		}
+
+        body
+        {
+            width: 100vw;
+            height: 100vh;
+            margin: auto;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 13pt;
+            text-align: center;
+        }
+
+        #container
+        {
+            height: 470px;
+            width: 310px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -235px;
+            margin-left: -155px;
+            display: none;
+        }
+
+        .button
+        {
+            border: 2px solid #f1c40f;
+            border-radius: 1em;
+            background: transparent;
+            color: #000000;
+            box-shadow: 0 5px 15px 5px grey
+        }
+
+        .button:active
+        {
+            box-shadow: 0 5px 15px 1px lightgrey
+        }
+
+        .button:focus
+        {
+            outline: none
+        }
+
+        .img-responsive
+        {
+            display: inline-block;
+            max-width: 100%;
+            height: auto;
+            border: 5px solid white;
+        }
+        
+        .responseHighlight
+		{
+			border: 5px solid red;
+		}
+		
+    </style>
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="chooseInput.v1.Feb24.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.Oct23.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var testVersion;                // version identifier for this test
+    var chosenInput;                // input type (taps or keys)
+    var symbols;                    // symbols chosen for this test
+    var symbol;                     // the symbol to show (1-6)
+    var digit;                      // the digit corresponding to the symbol
+    var correct;                    // correct=1, wrong=0
+    var testStart = 0;              // start timestamp of the test
+    var score = 0;                  // accumulated score
+    var results = [];               // array to store trials details and responses
+    var outcomes = {};              // object containing outcome variables
+    var frameSequence = [];         // object containing the sequence of frames and their properties
+    var frame;                      // single frame object
+    var presentationTime;			// variable for logging trial presentation time
+    var nopractice;                 // URL parameter: no practice trials
+    var duration;                   // URL parameter: duration of the test in seconds
+    var moresymbols;				// URL parameter: should we draw from a larger symbol pool?
+    var seed;                       // URL parameter: random number generator seed
+    var debug;                      // URL parameter: output to console
+    var demo;                       // URL parameter: run in demo mode
+    var showresults;                // URL parameter: if they want to show results in a popup window
+    var autosave;                   // URL parameter: if they want to save data in a file automatically
+    var filename;                   // URL parameter: filename for data
+    var useChooseInput;				// URL parameter: whether to use chooseInput
+    var usage = "";                 // URL parameter: show usage
+    var practiceChoice = null;		// whether the participant chose to complete optional practice trials
+
+	// message for optional practice trials
+	function showOptionalPractice()
+	{
+		setTimeout(function(){
+			showAlert("<h3>TMB Digit Symbol Matching</h3>" +
+					  "Please choose whether to:<br><br><br>" +
+					  "<label><input class='radioAlign' id='practiceSkip' type='radio' name='practice' value='skip' checked>Skip practice trials</label><br><br>"+
+					  "<label><input class='radioAlign' id='practiceNoSkip' type='radio' name='practice' value='noSkip'>View practice trials</label><br>"+
+					  "<br><br>",
+					  "Click here to continue",
+					  function ()
+					  {
+						  practiceChoice = document.getElementById('practiceSkip').checked ? 'skip' : 'noSkip';
+					setFrameSequence();
+				},
+					  '20pt');
+		},50);
+	}
+
+    // specify actions to take on user input
+    tmbUI.onreadyUI = function()
+    {
+        // if we are debugging and there was an error, log the message
+        if(debug === 'true' && tmbUI.message) console.log(tmbUI.message);
+
+        // is the response correct?
+        correct = parseInt(tmbUI.response.slice(-1)) === frame.digit ? 1 : 0;
+
+        // store the results
+        if(frame.type === "practice" ||
+           (frame.type === "test" && tmbUI.status !== "timeout"))
+        {
+            results.push(
+            {
+                type: frame.type, // one of practice or test
+                symbol: frame.symbol, // symbol index
+                digit: frame.digit, // symbol digit
+                response: tmbUI.response.slice(-1), // the key or element chosen
+                correct: correct, // boolean correct
+                rt: tmbUI.rt, // response time
+                stimOnsetTimestamp: presentationTime, // stimulus presentation timestamp
+                responseTimestamp: tmbUI.downTimestamp, // response timestamp
+                state: tmbUI.status // state of the response handler
+            });
+
+            // if we are debugging, log the results
+            if(debug === 'true') logResults(results,'inc');
+        }
+        // log the final trial, which times out and ends the test
+        else if (frame.type === "test" && tmbUI.status === "timeout")
+        {
+        	results.push(
+            {
+                type: frame.type, // one of practice or test
+                symbol: frame.symbol, // symbol index
+                digit: frame.digit, // symbol digit
+                response: null,
+                correct: null,
+                rt: null, 
+                stimOnsetTimestamp: presentationTime, // stimulus presentation timestamp
+                responseTimestamp: now(), 
+                state: 'timeout'
+            });
+        }
+
+        if(frame.type === "practice")
+        {
+            // on practice trials, if the input event returns a timeout
+            // or the response is not correct,
+            // stop the sequence and advise the participant
+            if(tmbUI.status === "timeout" || !correct)
+            {
+                // rewind the frame sequence by one frame,
+                // so that the same frame is displayed again
+                frameSequence.unshift(frame);
+
+                showAlert("<img src=" + frame.source + " alt='Symbol'><br>" +
+                          (chosenInput === 'taps'
+                              ? ("<br>Remember:<br><b>touch the screen</b> to respond.<br><br>" +
+                                 "You should <b>touch " + frame.digit + "</b><br>")
+                              : ("<br>Remember:<br><b>use the keyboard</b> to respond.<br><br>" +
+                                 "You should <b>press " + frame.digit +
+                                 "</b> on the <b>keyboard</b> <br>")) +
+                          "when you see this symbol.<br><br>",
+                          (chosenInput === 'taps' ? "Click here to retry" : ''),
+                          function()
+                          {
+                              showFrame("null");
+                              nextTrial();
+                          },
+                          '20pt',
+                          null,
+				  		  (chosenInput === 'taps' ? null : 'Press the SPACEBAR to retry'));
+            }
+            else
+            {
+                nextTrial();
+            }
+        }
+        else if(frame.type === "test")
+        {
+            if(tmbUI.status !== "timeout")
+            {
+                // choose a symbol randomly, but avoid 1-back repetitions
+                while (symbols[(symbol = randInt(1, 6))-1] === frame.symbol) {}
+                digit = symbol % 3 === 0 ? 3 : symbol % 3;
+
+                // set up the next frame
+                frameSequence.push(
+                {
+                    type: "test",
+                    message: "",
+                    symbol: symbols[symbol-1],
+                    digit: digit,
+                    source: "images/" + symbols[symbol-1] + ".png"
+                });
+            }
+
+            nextTrial();
+        }
+    };
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if (frame)
+        {
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                 (chosenInput === 'taps' ? "Click here for instructions" : ''),
+                                                 function ()
+                                                 {
+                                                     showFrame("null");
+                                                     nextTrial();
+                                                 },
+                                                 '20pt',
+												 null,
+												 (chosenInput === 'taps' ? null : 'Press the SPACEBAR for instructions'));
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                        (chosenInput === 'taps' ? "Click here to continue" : ''),
+                                                        function ()
+                                                        {
+                                                            showFrame("null");
+                                                            nextTrial();
+                                                        },
+                                                        '20pt',
+													    null,
+													    (chosenInput === 'taps' ? null : 'Press the SPACEBAR to continue'));
+            // deal with practice and test frames
+            else
+            {
+                // hide the cursor
+                hideCursor("document.body");
+
+                // set the image source of the symbol
+                getID("probe").src = frame.source;
+
+                // set response timeout:
+                // - for practice trials -> a fixed interval
+                // - for test trials -> what's left of 'duration' seconds since
+                //                      start, with a minimum of 150 ms
+                if(frame.type === "practice") tmbUI.timeout = 5000;
+                else
+                {
+                    if(!testStart) testStart = now();
+                    if(demo === 'true') tmbUI.timeout = 10000 - (now() - testStart);
+                    else tmbUI.timeout = duration * 1E3 - (now() - testStart);
+                    
+                    // give participant 150 ms for last trial if time has not expired
+                    if(tmbUI.timeout < 150 && tmbUI.timeout > 0)
+                    {
+                        tmbUI.timeout = 150;
+                    }
+                    // end test immediately if time has expired
+                    else if (tmbUI.timeout <= 0)
+                    {
+                    	nextTrial();
+                    	return;
+                    }
+                }
+
+                requestAnimationFrame(function()
+                {
+                    showFrame("container","probeRow","keyRow1","keyRow2","response");
+                    presentationTime = now();
+                    tmbUI.getInput();
+                });
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+            showCursor("document.body");
+
+            // all test trials (excluding practice and timeouts)
+            var tmp1 = results.filter(function( obj )
+            {
+                return obj.type !== 'practice' &&
+                       obj.state !== 'timeout';
+            });
+
+            // all correct rts
+            var tmp2 = tmp1.filter(function( obj )
+            {
+                return obj.correct === 1;
+            }).pluck('rt');
+
+            // response device
+            var tmp3 = tmp1[0] ? tmp1[0].state : null;
+            tmp3 = /key/i.test(tmp3) ? 'keyboard' :
+                   /touch/i.test(tmp3) ? 'touch' :
+                   /mouse/i.test(tmp3) ? 'mouse' :
+                   /pen/i.test(tmp3) ? 'pen' :
+                   'unknown';
+
+            // compute score and outcome variables
+            score = outcomes.score = tmp2.length;
+            outcomes.num_correct = tmp2.length;
+            outcomes.num_responses = tmp1.length;
+            outcomes.meanRTc = tmp2.length ? tmp2.average().round(2) : null;
+            outcomes.medianRTc = tmp2.length ? tmp2.median().round(2) : null;
+            outcomes.sdRTc = tmp2.length > 1 ? tmp2.sd().round(2) : null;
+            outcomes.accuracy = outcomes.num_responses > 0 ? 
+            			(outcomes.num_correct / outcomes.num_responses).round(4) : null;
+            outcomes.cvRTc = tmp2.length > 1 ? 
+            				 (outcomes.sdRTc / outcomes.medianRTc).round(4) : null;
+            outcomes.didPracticeTrials = (nopractice === 'false' || 
+            							  practiceChoice === 'noSkip') ? 1 : 0;
+            outcomes.symbolsUsed = symbols.toString();
+            outcomes.responseDevice = tmp3;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // if we save locally, append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + ".<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "DSCresults.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                showAlert("Test complete!",
+                          "",
+                          function (){},
+                          '20pt');
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage;
+
+        // messages
+        testMessage =
+        {
+            "begin": ("<h2>Matching Shapes And Numbers</h2>" +
+                      "<img src='images/key.png' alt='Title image'><br><br>"),
+            "instructions": [("<h3>Instructions:</h3>" +
+                              "<br><img src='images/key.png' alt='Instructions'>" +
+                              "<br><br>" +
+                              "Each <b>symbol</b> has a <b>number</b>.<br><br>"),
+                             ("<img src='images/1.png' alt='Instructions'><br>" +
+                              "<img src='images/keySmall.png' alt='Instructions'>" +
+                              "<br><br>" +
+                              "When a symbol appears at the top,<br>" +
+                              (chosenInput === 'taps'
+                               ? "<b>touch</b> its number <b>on the screen</b><br>"
+                               : "press its number on the <b>keyboard</b><br>") +
+                              "(here it is 1).<br><br>")],
+            "practice": [("<img src='images/2.png' alt='Instructions'><br>" +
+                          "<img src='images/keySmall.png' alt='Instructions'><br><br>" +
+                          "Let's practice a few symbols.<br><br><br>"),
+                         ("Excellent!<br>" +
+                          "You have completed the practice.<br>" +
+                          "Now let's do more.<br><br>")],
+            "test": ("Your score will be<br>" +
+                     "how many correct responses<br>" +
+                     "you make in " + duration + " seconds,<br>" +
+                     "so try to be <b>ACCURATE</b> and <b>QUICK</b>!<br><br>")
+        };
+        
+        if (nopractice !== 'optional')
+        {
+        	// type of frame to display
+			var frameType = ["begin","message","message"];
+
+			// message to display
+			var frameMessage = [testMessage.begin,
+								testMessage.instructions[0],
+								testMessage.instructions[1]];
+
+			// symbol to display
+			var frameSymbol = [0,0,0];
+
+			// corresponding digit
+			var frameDigit = [0,0,0];
+        }
+        else
+        {
+        	// type of frame to display
+			var frameType = ["message","message"];
+
+			// message to display
+			var frameMessage = [testMessage.instructions[0],
+								testMessage.instructions[1]];
+
+			// symbol to display
+			var frameSymbol = [0,0];
+
+			// corresponding digit
+			var frameDigit = [0,0];
+        }
+        
+        // add practice trials as needed
+        if (practiceChoice === 'noSkip' || nopractice === 'false')
+        {
+            frameType = frameType.concat(["message","practice","practice",
+                                          "practice","message"]);
+            frameMessage = frameMessage.concat([testMessage.practice[0],
+                                                "","","",
+                                                testMessage.practice[1]]);
+            frameSymbol = frameSymbol.concat([0,1,3,5,0]);
+            frameDigit = frameDigit.concat([0,1,3,2,0]);
+        }
+
+        // add test trials
+        frameType = frameType.concat(["message","test"]);
+        frameMessage = frameMessage.concat([testMessage.test,""]);
+        frameSymbol = frameSymbol.concat([0,4]);
+        frameDigit = frameDigit.concat([0,1]);
+
+        // push all components into the frames chain
+        for(var i=0; i<frameType.length; i++)
+        {
+            frameSequence.push(
+            {
+                type: frameType[i],
+                message: frameMessage[i],
+                symbol: symbols[frameSymbol[i]-1],
+                digit: frameDigit[i],
+                source: "images/" + symbols[frameSymbol[i]-1] + ".png"
+            });
+        }
+        
+        // start displaying the frame sequence
+        nextTrial();
+    }
+
+    function setup(input)
+    {
+        // determine events to listen to and
+        // customize response elements
+        chosenInput = input;
+        if(chosenInput === 'taps')
+        {
+            tmbUI.UIevents = ['taps'];
+            tmbUI.UIelements = ['resp1','resp2','resp3'];
+        }
+        else
+        {
+            tmbUI.UIevents = ['keys'];
+            tmbUI.UIkeys = [keyToCode('1'),keyToCode('2'),keyToCode('3'),
+                            keyToCode('numpad1'),keyToCode('numpad2'),keyToCode('numpad3')];
+            tmbUI.UIelements = ['resp1','resp2','resp3','resp1','resp2','resp3'];
+        }
+        tmbUI.highlight = "responseHighlight";
+
+		// select which symbols will be used during test
+    	if (moresymbols)
+    	{
+       	 	// select 6 images to use from the extended set
+        	symbols = range(1,30).shuffle().slice(0,6);
+        }
+        else
+        {
+        	// use original 6 symbols
+        	symbols = [1,2,3,4,5,6];
+        }
+
+        // preload images and start the testing sequence
+        var images = [];
+
+        for(var i = 0; i < 30; i++) images[i] = "images/" + (i+1) + ".png";
+        images[30] = "images/resp1.png";
+        images[31] = "images/resp2.png";
+        images[32] = "images/resp3.png";
+        images[33] = "images/key.png";
+        images[34] = "images/keySmall.png";
+
+        imagePreLoad(images,
+                     {pipeline: false,
+                      callBack: function ()
+                      {
+                          for(var i = 0; i < 6; i++)
+                              getID("img"+(i+1)).src = "images/" +
+                                                       symbols[i] + ".png";
+						  // either show optional practice trial screen, or set the frame sequence
+       					  nopractice === 'optional' ? showOptionalPractice() : setFrameSequence();
+                      }
+                     });
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+        
+        // add appropriate meta viewport for scaling
+        setBodyScale(680,650);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" + 
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>nopractice=false</i> -- omits practice trials [true, false, optional]<br>" +
+                "<i>duration=90</i> -- test duration in seconds<br>" +
+                "<i>moresymbols=false</i> -- should we draw from a pool of 30 symbols?<br>" +
+                "<i>seed=123</i> -- random number generator seed<br>" +
+                "<i>demo=true</i> -- runs in demo mode only for 10 seconds<br>" +
+                "<i>chooseinput=true</i> -- whether we use chooseInput when touch is detected<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+            document.getElementById('helpSpan').style.textAlign = 'left';
+            document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // check if they want a demo run
+        demo = getUrlParameters("demo", "", true);
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // see if they don't want practice or optional practice
+        nopractice = getUrlParameters("nopractice", "", true);
+        if (!nopractice) nopractice = 'false';
+ 		else if (!(nopractice === 'true' || nopractice === 'false' || nopractice === 'optional'))
+		{
+			showAlert("Error: URL parameter 'nopractice' must<br>" +
+					  "be set to 'true', 'false', or 'optional'.<br><br>",
+					  "",
+					  null,
+					  '20pt');
+			return;
+		}
+        
+        // check if we should draw from the larger symbol pool, or use first 6 symbols
+        moresymbols = getUrlParameters("moresymbols","", true);
+        if (moresymbols === "true")
+        {
+        	moresymbols = true;
+        } 
+        else if (moresymbols === "false" || !moresymbols)
+        {
+        	moresymbols = false;
+        }
+        else
+        {
+        	 showAlert("Invalid value for URL parameter: moresymbols");
+        	 return;
+        }
+        
+        // check if they want to bypass chooseInput
+        useChooseInput = getUrlParameters("chooseinput", "", true);
+        if (!useChooseInput || useChooseInput === 'true')
+		{
+			useChooseInput = true;
+		}
+		else if (useChooseInput === 'false')
+		{
+			useChooseInput = false;
+		}
+		else
+		{
+			showAlert("Error: URL parameter 'chooseinput' must<br>" +
+					  "be set to 'true' or 'false'.<br><br>",
+					  "",
+					  null,
+					  '20pt');
+			return;
+		}
+
+        // set the random generator's seed
+        seed = getUrlParameters("seed", "", true);
+        if(!(seed = parseInt(seed))) seed = "DScoding";
+        Math.seedrandom(seed);
+
+        // set the duration of the test in seconds
+        duration = getUrlParameters("duration", "", true);
+        if(!(duration = parseInt(duration))) duration = 90;
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // disable spurious user interactions
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        if(!hasTouch) setup('keys');
+        else 
+        {
+        	if (useChooseInput) chooseInput({keyboard: true, touch: true},setup);
+        	else setup('taps');
+        }
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <div id="container">
+        <div id="probeRow">
+            <img id="probe"
+                 class="img-responsive"
+                 src="images/1.png"
+                 alt="probe">
+        </div>
+        <br><br>
+        <div id="keyRow1">
+            <img id="img1" img src="" alt="key 1">
+            <img id="img2" img src="" alt="key 2">
+            <img id="img3" img src="" alt="key 3">
+        </div>
+        <div id="keyRow2">
+            <img id="img4" img src="" alt="key 4">
+            <img id="img5" img src="" alt="key 5">
+            <img id="img6" img src="" alt="key 6">
+        </div>
+        <div id="response">
+            <img class="img-responsive" id="resp1" src="images/resp1.png" alt="response 1">
+            <img class="img-responsive" id="resp2" src="images/resp2.png" alt="response 2">
+            <img class="img-responsive" id="resp3" src="images/resp3.png" alt="response 3">
+        </div>
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it -->
+    <noscript>
+        For full functionality of this site it is necessary to enable JavaScript.<br>
+        Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+        instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>
