@@ -1,0 +1,42 @@
+* This is an input file to the Reading the Mind in the Eyes Test
+* Each line contains an image, the target word, and 4 word choices
+* The separator is double whitespace "  "
+* Lines beginning with '*' are ignored
+* PROBE  TARGET  CHOICE-1  CHOICE-2  CHOICE-3  CHOICE-4
+37Friendly-Jenny.jpg  friendly  nervous  sarcastic  curious  friendly
+52Panicked-Maria.jpg  panicked  threatening  disappointed  panicked  concerned
+60Relieved-Sam.jpg  relieved  indifferent  relieved  puzzled  terrified
+33Excited-Jake.jpg  excited  excited  embarrassed  interested  sarcastic
+52Panicked-Jenny.jpg  panicked  threatening  panicked  concerned  disappointed
+17Confident-Ryanne.jpg  confident  disappointed  confident  confused  uneasy
+37Friendly-Maria.jpg  friendly  curious  friendly  sarcastic  nervous
+5Amused-Lonnie.jpg  amused  amused  excited  curious  disappointed
+68Terrified-Amelia.jpg  terrified  irritated  threatening  concerned  terrified
+33Excited-Rob.jpg  excited  interested  sarcastic  embarrassed  excited
+46Indifferent-Sam.jpg  indifferent  indifferent  preoccupied  uneasy  puzzled
+37Friendly-Adobuere.jpg  friendly  friendly  sarcastic  curious  nervous
+33Excited-Liliane.jpg  excited  sarcastic  interested  embarrassed  excited
+5Amused-Ely.jpg  amused  amused  excited  curious  disappointed
+60Relieved-Danny.jpg  relieved  relieved  indifferent  puzzled  terrified
+52Panicked-Gail.jpg  panicked  panicked  threatening  disappointed  concerned
+18Confused-Adobuere.jpg  confused  confused  hostile  threatening  amused
+50Joking-Sam.jpg  joking  thoughtful  excited  fantasizing  joking
+5Amused-Maria.jpg  amused  curious  amused  excited  disappointed
+18Confused-Amelia.jpg  confused  confused  hostile  threatening  amused
+46Indifferent-Adobuere.jpg  indifferent  uneasy  puzzled  indifferent  preoccupied
+46Indifferent-Ben.jpg  indifferent  indifferent  preoccupied  puzzled  uneasy
+17Confident-Marc.jpg  confident  uneasy  confused  confident  disappointed
+11Ashamed-Jake.jpg  ashamed  nervous  ashamed  affectionate  friendly
+5Amused-Lynn.jpg  amused  excited  disappointed  curious  amused
+1Accusing-Laura.jpg  accusing  accusing  confused  cautious  dominant
+5Amused-Danny.jpg  amused  disappointed  excited  amused  curious
+37Friendly-Ami.jpg  friendly  friendly  sarcastic  curious  nervous
+11Ashamed-Brandon.jpg  ashamed  affectionate  ashamed  friendly  nervous
+28Disrustful-Andrew.jpg  distrustful  curious  distrustful  hostile  joking
+16Concerned-Jenny.jpg  concerned  concerned  confused  defiant  disappointed
+55Preoccupied-Sam.jpg  preoccupied  depressed  preoccupied  confused  alarmed
+33Excited-Krystal.jpg  excited  excited  embarrassed  interested  sarcastic
+46Indifferent-Jake.jpg  indifferent  preoccupied  indifferent  uneasy  puzzled
+70Threatening-EdR.jpg  threatening  enraged  angry  threatening  scared
+46Indifferent-Juliet.jpg  indifferent  indifferent  preoccupied  puzzled  uneasy
+41Hostile-Rob.jpg  hostile  hostile  threatening  shocked  tentative
