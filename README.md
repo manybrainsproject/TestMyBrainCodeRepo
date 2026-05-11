@@ -21,6 +21,12 @@ References:
 
 2. The Many Brains Project. TestMyBrain Cognitive Tests. URL: www.manybrains.net
 
+## Code Availability
+
+All test code currently available for download is provided in this repository. Updated versions of existing tests, as well as additional tests, will be added here as they are prepared for release.
+
+We are unable to provide code or respond to inquiries regarding legacy tests that are no longer supported and/or tests that are not yet publicly available in this repository.
+
 ## Getting Started
 ### Dependencies
 
