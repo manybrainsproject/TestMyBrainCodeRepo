@@ -1,0 +1,174 @@
+/*
+
+    Copyright 2023 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+    Author: Paolo Martini
+    Last updated: 05.22.2023
+    Version: Flanker_AoU.v1.Mar23
+
+*/
+
+@font-face{font-family:"Inconsolata";src:url("fonts/Inconsolata-Regular.ttf")}
+
+*
+{
+    border-radius: 0;
+    box-sizing: border-box;
+}
+
+*::after, *::before
+{
+    box-sizing: border-box;
+}
+
+html
+{
+    width: 100vw;
+    height: 100vh;
+}
+
+img.rounded-corners
+{
+  border-radius: 50%;
+}
+
+img.small
+{
+  border-radius: 50%;
+  height: 100px;
+  width: 100px;
+  border: 1px solid black;
+}
+
+body
+{
+    width: 100vw;
+    height: 100vh;
+    margin: auto;
+    background: #ffffff;
+    color: #000000;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size: 13pt;
+    text-align: center;
+}
+
+.button
+{
+    border: 2px solid #f1c40f;
+    border-radius: 1em;
+    background: transparent;
+    color: #000000;
+    box-shadow: 0 5px 15px 5px grey
+}
+
+.button:active
+{
+    box-shadow: 0 5px 15px 1px lightgrey
+}
+
+.button:focus
+{
+    outline: none
+}
+
+.stimulus
+{
+    width: 400px;
+    height: 100px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-top: -150px;
+    margin-left: -200px;
+    text-align: center;
+    color: #424242;
+    font-size:70pt;
+    line-height: 70%;
+    font-family: 'Inconsolata', monospace !important;
+    display: none;
+}
+
+.responseButton
+{
+    -webkit-appearance: none;
+    background: #007BC7;
+    font-size: 40pt;
+    line-height: 2.5em;
+    width: 150px;
+	color: white;
+    border-radius: 2px;
+    box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.14);
+    text-align: center;
+    font-family: Palatino Linotype, Bookman Antiqua, Palatino, serif;
+    -webkit-tap-highlight-color: transparent;
+    cursor: none;
+}
+
+.responseIcon
+{
+    -webkit-appearance: none;
+    background: #e0e0e0;
+    border-radius: 50%;
+    width: 152px;
+    height: 152px;
+    border: 1px solid transparent;
+    -webkit-tap-highlight-color: transparent;
+    cursor: none;
+}
+
+.responseHighlight
+{
+	box-shadow: inset 0px 0px 20px #c1c1c1;
+}
+
+.responseIconHighlight
+{
+	border: 1px solid transparent;
+}
+
+.responseIconHighlightPractice
+{
+	background: rgba(255, 255, 255, 0.3);
+	border: 1px solid #505050;
+	/*box-shadow: inset 0px 0px 20px #cdcdcd;*/
+}
+
+#leftButton
+{
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -260px;
+    display: none;
+}
+
+#rightButton
+{
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: 110px;
+    display: none;
+}
+
+.blink
+{
+    animation: blink 1s steps(1, end) infinite;
+}
+
+@keyframes blink
+{
+    0% {
+        opacity: 1;
+    }
+    75% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}

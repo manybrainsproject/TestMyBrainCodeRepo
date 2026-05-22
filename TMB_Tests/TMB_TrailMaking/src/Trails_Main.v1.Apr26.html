@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<!-- Metadata ************************************************************** -->
+
+    <meta charset="UTF-8">
+    <meta name="description" content="TMB Trail-Making">
+    <meta name="copyright" content="2026 The Many Brains Project, Inc. and McLean Hospital LGPLv3">
+    <meta name="keywords" content="cognitive test, brain test">
+
+    <!-- Configs for mobiles -->
+
+    <!-- Set the viewport. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=contain">
+
+    <!-- Allow web app to be run in full-screen mode. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Make the app title different than the page title. -->
+    <meta name="apple-mobile-web-app-title" content="TMB Trails">
+
+    <!-- Set the theme color -->
+    <meta name="theme-color" content="white">
+
+<!-- end of metadata ******************************************************* -->
+
+<!-- Links to Icons. ********************************************************-->
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+
+<!-- end of icons ********************************************************** -->
+
+<!-- © 2026 The Many Brains Project, Inc. and McLean Hospital.
+
+     This code is made available under a GNU Lesser General Public License 3.0
+     (LGPLv3).
+     https://www.gnu.org/licenses/lgpl-3.0.html.
+
+     For Usage, enter:
+
+       Trails.html?help
+
+     For reference see:
+
+      Bowie CR & Harvey PD. Administration and interpretation of the
+        trail making test. Nature Protocols, 2006, 1(5), 2277-2281.
+
+      Auer, T., Held, M.: Heuristics for the Generation of Random Polygons.
+        In: Proc. 8th Canadian Conference Computational Geometry,
+        Ottawa, Canada, pp. 38–44. Carleton University Press (1996)
+
+     Notes:
+
+      Version A connects digits, version B connects digits and letters
+      alternately. The spatial arrangement of the targets is determined by the
+      random number generator's seed. The score is the number of targets
+      connected per minute.
+
+-->
+
+<!-- Title ***************************************************************** -->
+
+    <title>Trail-Making</title>
+
+<!-- end of Title ********************************************************** -->
+
+<!-- css Style declarations and stylesheets ******************************** -->
+
+    <style>
+
+        *
+        {
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        *::after, *::before
+        {
+            box-sizing: border-box;
+        }
+
+        html
+		{
+			width: 100vw;
+			height: 100vh;
+		}
+
+        body
+        {
+            width: 100vw;
+            height: 100vh;
+            margin: auto;
+            background: #ffffff;
+            color: #000000;
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 13pt;
+            text-align: center;
+        }
+
+        .button
+        {
+            border: 2px solid #f1c40f;
+            border-radius: 1em;
+            background: transparent;
+            color: #000000;
+            box-shadow: 0 5px 15px 5px grey
+        }
+
+        .button:active
+        {
+            box-shadow: 0 5px 15px 1px lightgrey
+        }
+
+        .button:focus
+        {
+            outline: none
+        }
+
+        #container
+        {
+            width: 800px;
+            height: 650px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-left: -400px;
+            margin-top: -325px;
+            text-align: center
+        }
+
+        #svgContainer
+        {
+            width: 800px;
+            height: 600px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-left: -400px;
+            margin-top: -275px;
+            text-align: center
+        }
+
+        #feedback
+        {
+            width: 800px;
+            height: 30px;
+            position: absolute;
+            left: 50%;
+            margin-left: -400px;
+            text-align: center;
+            font-size: 30px;
+            color: #FF0000;
+            padding: 10px 0 10px 0;
+        }
+
+    </style>
+
+<!-- end of css Style declarations ***************************************** -->
+
+<!-- required js libraries ************************************************* -->
+
+    <script type="text/javascript" src="raphael.2.2.0.min.js"></script>
+    <script type="text/javascript" src="TestMyBrain.12.18.min.js"></script>
+    <script type="text/javascript" src="TestHelper.v1.Aug25.js"></script>
+
+<!-- end of required js libraries ****************************************** -->
+
+<!-- js script ************************************************************* -->
+
+    <script type="text/javascript">
+
+    var paper;                      // the SVG canvas
+    var paperWidth;                 // width of SVG canvas
+    var paperHeight;                // height of SVG canvas
+    var pathPoints = [];            // array of path points coordinates
+    var pathLabels = [];            // array of SVG text labels for each path point
+    var pathCircles = [];           // array of SVG circle objects
+    var lastX;                      // x coordinate of previous mouse event
+    var lastY;                      // y coordinate of previous mouse event
+    var elsCount = 0;               // sum of valid clicks
+    var elsErrors = [];             // array of error elements
+    var elsPaths = [];              // array of sequential paths
+    var trailsType;                 // test A or B
+    var frameSequence = [];         // object containing the sequence of frames and their properties
+    var frame;                      // single frame object
+    var testStart = 0;              // start timestamp of the test
+    var score = 0;                  // accumulated score
+    var errors = 0;                 // # errors
+    var results = [];               // array to store trials details and responses
+    var testVersion;                // version identifier for this test
+    var outcomes = {};              // object containing outcome variables
+    var seed;                       // URL parameter: random number generator seed
+    var ntrials;                    // URL parameter: number of test trials
+    var ncircles;                   // URL parameter: number of circles
+    var dopractice;                 // URL parameter: whether to do practice trials
+    var debug;                      // URL parameter: output to console
+    var showresults;                // URL parameter: if they want to show results in a popup window
+    var autosave;                   // URL parameter: if they want to save data in a file automatically
+    var filename;                   // URL parameter: filename for data
+    var usage = "";                 // URL parameter: show usage
+    var session;				    // URL parameter: session number
+
+    function startHandler(e)
+    {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // find the element under the cursor
+        var currentX = e.type === 'touchstart' ? e.changedTouches[0].clientX : e.clientX;
+        var currentY = e.type === 'touchstart' ? e.changedTouches[0].clientY : e.clientY;
+        var startPoint = document.elementFromPoint(currentX,currentY);
+
+        // if it's not circle 1, tell them to click it!
+        if(startPoint.id !== "point1")
+        {
+            // give feedback
+            getID("feedback").innerHTML = "Click on '1'!";
+        }
+
+        // they clicked a circle
+        if(startPoint.tagName.toLowerCase() === 'circle')
+        {
+            // it's circle 1
+            if(startPoint.id === "point1")
+            {
+                // increment the targets count
+                elsCount++;
+
+                // start timing
+                if(frame.type === "test") testStart = now();
+
+                // empty the feedback
+                getID("feedback").innerHTML = "";
+
+                // mark the target as a hit
+                startPoint.attributes.fill.value = "lightgray";
+
+                // if there were previous errors, erase the error markers and feedback
+                if(elsErrors.length)
+                {
+                    for(var i = 0; i < elsErrors.length; i++)
+                    {
+                        elsErrors[i].attributes.fill.value = "white";
+                    }
+                    elsErrors = [];
+                }
+
+                // store event in results
+                if(frame.type === "test")
+                {
+                    // 'status' is one of touchstart, mousedown, pointerdown-[pointerType]
+                    var MSetypes = ['','', 'touch', 'pen', 'mouse'];
+                    var status = e.type;
+                    if(status === "pointerdown") status += ("-" + e.pointerType);
+                    else if(status === "MSPointerDown") status += ("-" + MSetypes[e.pointerType]);
+
+                    results.push(
+                    {
+                        target: 1, // the target element
+                        correct: 1, // wrong=0, correct=1
+                        time: 0, // timestamp
+                        state: status // state of the response handler
+                    });
+
+                    // if we are debugging, log the results
+                    if(debug === 'true')
+                    {
+                        logResults(results,'inc');
+                    }
+                }
+
+                // change cursor
+                paper.canvas.style.cursor = "cell";
+
+                // compute the paper coordinates of the first point
+                // (subtract from clientX offset of svgContainer!)
+                var scaleX = getID("svgContainer").offsetWidth /
+                             getID("svgContainer").getBoundingClientRect().width;
+                var scaleY = getID("svgContainer").offsetHeight /
+                             getID("svgContainer").getBoundingClientRect().height;
+                lastX = ((e.type === 'touchmove' ? e.changedTouches[0].clientX : e.clientX) -
+                         getID("svgContainer").getBoundingClientRect().left) * scaleX;
+                lastY = ((e.type === 'touchmove' ? e.changedTouches[0].clientY : e.clientY) -
+                         getID("svgContainer").getBoundingClientRect().top) * scaleY;
+
+                // attach the tracking listeners, then remove self
+                if(hasPointer)
+                {
+                    if(window.PointerEvent)
+                    {
+                        paper.canvas.addEventListener("pointermove",moveHandler,true);
+                        paper.canvas.removeEventListener("pointerdown",startHandler,true);
+                    }
+                    else
+                    {
+                        paper.canvas.addEventListener("MSPointerMove",moveHandler,true);
+                        paper.canvas.removeEventListener("MSPointerDown",startHandler,true);
+                    }
+                }
+                else if(hasTouch)
+                {
+                    paper.canvas.addEventListener("touchmove",moveHandler,true);
+                    paper.canvas.removeEventListener("touchstart",startHandler,true);
+                }
+                if(!hasPointer)
+                {
+                    paper.canvas.addEventListener("mousemove",moveHandler,true);
+                    paper.canvas.removeEventListener("mousedown",startHandler,true);
+                }
+            }
+            // they clicked on the wrong target
+            else
+            {
+                // store the error
+                elsErrors.push(startPoint);
+
+                // mark the target as wrong
+                startPoint.attributes.fill.value = "red";
+            }
+        }
+    }
+
+    function moveHandler(e)
+    {
+        var scaleX, scaleY, pathString, currentX, currentY, elX, elY, label;
+        var elNum;
+        var MSetypes = ['','', 'touch', 'pen', 'mouse'];
+        var status;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // determine type of event
+        status = e.type;
+        if(status === "pointermove") status += ("-" + e.pointerType);
+        else if(status === "MSPointerMove") status += ("-" + MSetypes[e.pointerType]);
+
+        // compute the paper coordinates of the cursor
+        // (subtract from clientX the offset of svgContainer!)
+        scaleX = getID("svgContainer").offsetWidth /
+                 getID("svgContainer").getBoundingClientRect().width;
+        scaleY = getID("svgContainer").offsetHeight /
+                 getID("svgContainer").getBoundingClientRect().height;
+        currentX = ((e.type === 'touchmove' ? e.changedTouches[0].clientX : e.clientX) -
+                    getID("svgContainer").getBoundingClientRect().left) * scaleX;
+        currentY = ((e.type === 'touchmove' ? e.changedTouches[0].clientY : e.clientY) -
+                    getID("svgContainer").getBoundingClientRect().top) * scaleY;
+
+        // build the path, draw it and store its reference
+        pathString = 'M' + lastX + ' ' + lastY + 'L' + currentX + ' ' + currentY;
+        elsPaths.push(paper.path(pathString).toBack());
+
+        // store current coordinates
+        lastX = currentX;
+        lastY = currentY;
+
+        // elementFromPoint requires coordinates relative
+        // to the viewport, so we use clientX
+        elX = e.type === 'touchmove' ? e.changedTouches[0].clientX : e.clientX;
+        elY = e.type === 'touchmove' ? e.changedTouches[0].clientY : e.clientY;
+
+        // find the element under the cursor
+        var elUnder = document.elementFromPoint(elX,elY);
+
+        // if they hit a target, process it
+        if(elUnder.tagName.toLowerCase() === 'circle')
+        {
+            // retrieve the target number
+            elNum = elUnder.id;
+            elNum = parseInt(elNum.replace("point",""));
+
+            // extract the label
+            if(trailsType === "a") label = elNum;
+            else if(trailsType === "b" && isEven(elNum))
+                label = codeToKey((64+elNum/2).toFixed());
+            else label = (elNum + 1) / 2;
+
+            // they went back to the last valid hit
+            // to continue after an error
+            if(elNum === elsCount && elsErrors.length)
+            {
+                // erase the error markers
+                for(var i = 0; i < elsErrors.length; i++)
+                {
+                    elsErrors[i].attributes.fill.value = "white";
+                }
+                elsErrors = [];
+                // erase the error paths
+                for(i = 0; i < elsPaths.length; i++)
+                {
+                    elsPaths[i].remove();
+                }
+                elsPaths = [];
+
+                // erase feedback
+                getID("feedback").innerHTML = "";
+            }
+            // they hit an incrementally valid target
+            else if(elNum === elsCount + 1 && !elsErrors.length)
+            {
+                // increment the targets count
+                // and reset the path
+                elsCount++;
+                elsPaths = [];
+
+                // mark as a hit
+                elUnder.attributes.fill.value = "lightgray";
+
+                // store event in results
+                if(frame.type === "test")
+                {
+                    results.push(
+                    {
+                        target: label, // the target element
+                        correct: 1, // wrong=0, correct=1
+                        time: (now() - testStart).round(), // timestamp
+                        state: status // state of the response handler
+                    });
+
+                    // if we are debugging, log the results
+                    if(debug === 'true')
+                    {
+                        logResults(results,'inc');
+                    }
+                }
+
+                // trail is complete
+                if((frame.type === "practice" && elsCount === Math.floor(ncircles / 2)) ||
+                   (frame.type === "test" && elsCount === ncircles))
+                {
+                    // restore the cursor
+                    paper.canvas.style.cursor="default";
+
+                    // advise: it's done!
+                    getID("feedback").innerHTML = "Done!";
+
+                    // compute the score
+                    if(frame.type === "test") score += (now() - testStart).round();
+
+                    // call next trial after 1 second
+                    setTimeout(function()
+                    {
+                        getID("feedback").innerHTML = "";
+                        nextTrial();
+                    },1000);
+
+                    // remove self
+                    if(hasPointer)
+                    {
+                        if(window.PointerEvent)
+                            paper.canvas.removeEventListener("pointermove",moveHandler,true);
+                        else
+                            paper.canvas.removeEventListener("MSPointerMove",moveHandler,true);
+                    }
+                    else if(hasTouch) paper.canvas.removeEventListener("touchmove",moveHandler,true);
+                    if(!hasPointer) paper.canvas.removeEventListener("mousemove",moveHandler,true);
+                }
+            }
+            // they made an error
+            else if(elNum > elsCount + 1)
+            {
+                // store the error (filter multiple reports of same)
+                if(!(elsErrors.includes(elUnder)))
+                {
+                    elsErrors.push(elUnder);
+
+                    // store event in results
+                    if(frame.type === "test")
+                    {
+                        errors++;
+                        results.push(
+                        {
+                            target: label, // the target element
+                            correct: 0, // wrong=0, correct=1
+                            time: (now() - testStart).round(), // timestamp
+                            state: status // state of the response handler
+                        });
+
+                        // if we are debugging, log the results
+                        if(debug === 'true')
+                        {
+                            logResults(results,'inc');
+                        }
+                    }
+                }
+
+                // mark the target as wrong
+                elUnder.attributes.fill.value = "red";
+
+                // give feedback
+                if(!elsCount) getID("feedback").innerHTML = "Start on '1'!";
+                else
+                    getID("feedback").innerHTML = "That's wrong: go back to '" +
+                            (trailsType === "a" ? elsCount :
+                                    (isEven(elsCount) ?
+                                            codeToKey((64+elsCount/2).toFixed()) :
+                                    (elsCount+1)/2)) +
+                            "', then go to '" +
+                            (trailsType === "a" ? (elsCount + 1) :
+                                    (isEven(elsCount) ? (elsCount/2+1) :
+                                            codeToKey((64+elsCount/2).toFixed()))) + "'!";
+            }
+        }
+    }
+
+    function randomPath(len,elementSize,canvasXSize,canvasYSize,repulsion,callBack)
+    {
+        var tooClose, iterations, iSect, pDist1, pDist2, vAngle;
+        var elSet = [];
+        var i, j, restart;
+
+        // initialize the elements' array
+        for(i = 0; i < len; i++)
+        {
+            elSet.push({x: 0,y: 0});
+        }
+
+        // compute the square of the minimum distance
+        repulsion = repulsion * repulsion;
+
+        function reject()
+        {
+            // This function positions an element randomly and tests
+            // for a number of rejection criteria against all previously
+            // positioned elements. If all checks are passed, it moves on to
+            // the next element. If checks fail, it tries another random
+            // position, up to 500 iterations. If checks are not passed
+            // within that limit, it restarts the search by calling self recursively.
+            // Because this is computationally intensive
+            // and may block the thread for long periods, recursive calls
+            // are made with setImmediate: thus waiting time is kept
+            // at a minimum, while still yielding to the system.
+
+            restart = false;
+            tooClose = true;
+
+            // position the first element
+            elSet[0].x = Math.random() * (canvasXSize - 2 * elementSize) + elementSize;
+            elSet[0].y = Math.random() * (canvasYSize - 2 * elementSize) + elementSize;
+
+            iLoop:
+            for(i = 1; i < len; i++)
+            {
+                tooClose = true;
+                iterations = 0;
+
+                // This loop cycles until the element passes the rejection tests,
+                // with a limit of 500 iterations.
+                while(tooClose)
+                {
+                    // increment the iterations counter
+                    iterations++;
+
+                    // assign random coordinates to the element
+                    elSet[i].x = Math.random() * (canvasXSize - 2 * elementSize) + elementSize;
+                    elSet[i].y = Math.random() * (canvasYSize - 2 * elementSize) + elementSize;
+
+                    // check rotation of last segment is > 30 deg
+                    if(i > 1)
+                    {
+                        vAngle = vecAngleBetween(vecPvector(elSet[i-2],elSet[i-1]),
+                                                 vecPvector(elSet[i-1],elSet[i]))  * 180 / Math.PI;
+                        if(vAngle > -30 && vAngle < 30)
+                            continue;
+                    }
+
+                    // test this element against all previously positioned elements
+                    for (j = 0; j < i; j++)
+                    {
+                        iSect = 0;
+                        pDist1 = pDist2 = elementSize + 10;
+                        tooClose = true;
+
+                        // check points have minimum distance
+                        if(euclidDistanceSquared(elSet[i].x,elSet[i].y,
+                                                 elSet[j].x,elSet[j].y) > repulsion)
+                        {
+                            // check segments do not intersect
+                            if(j > 0)
+                                iSect = segmentsIntersect(elSet[i-1],elSet[i],
+                                                          elSet[j-1],elSet[j]);
+
+                            if(iSect === 0 || iSect === 3)
+                            {
+                                // check last segment is far from points
+                                if(j < i - 1)
+                                    pDist1 = pointSegmentDistance(elSet[j],
+                                                                  elSet[i-1],
+                                                                  elSet[i]);
+
+                                if(pDist1 > elementSize)
+                                {
+                                    // check last point is far from segments
+                                    if(j > 0)
+                                        pDist2 = pointSegmentDistance(elSet[i],
+                                                                      elSet[j-1],
+                                                                      elSet[j]);
+
+                                    if(pDist2 > elementSize) tooClose = false;
+                                }
+                            }
+                        }
+
+                        // as soon as the test fails, break the j loop
+                        if(tooClose) break;
+                    }
+
+                    // if too many iterations over the same element,
+                    // break out of the iLoop and restart
+                    if(iterations > 500)
+                    {
+                        restart = true;
+                        break iLoop;
+                    }
+                }
+
+            }
+
+            if(restart)
+            {
+                setImmediate(reject);
+            }
+            // when all elements have passed the test,
+            // return the path
+            else if(!tooClose) callBack(elSet);
+        }
+
+        setImmediate(reject);
+    }
+
+    function setup()
+    {
+        var r = 20; // radius of circles
+        var len = ncircles; // number of trails elements
+        var computing = true;
+        var warning;
+
+        function drawTrail(trailPath)
+        {
+            var sequence; // the sequential digit or letter
+            var fontSize = 30; // size of digits and letters
+            var tOffset; // hacked dy offset to center text in circles
+
+            warning.remove();
+            computing = false;
+            pathPoints = trailPath;
+
+            // draw digits and attach listeners
+            for(var i = 0; i < len; i++)
+            {
+                // type A is only digits, type B digits and letters
+                if(trailsType === "a") sequence = i+1;
+                else sequence = isEven(i) ? (i/2)+1 : codeToKey((64+i/2).toFixed());
+
+                pathCircles[i] = paper.circle(pathPoints[i].x, // x
+                                              pathPoints[i].y, // y
+                                              i === 0 ? r * 2
+                                                     : r)
+                                 .attr({"fill": "white",
+                                        "fill-opacity": "0.5"});
+                pathCircles[i].node.id = ("point" + (i+1));
+
+                pathLabels[i] = paper.text(pathPoints[i].x, // x
+                                           pathPoints[i].y, // y
+                                           sequence)        // text
+                                .attr({"font-size": i === 0 ? fontSize * 2
+                                                           : fontSize,
+                                       "font-family": "Arial",
+                                       "font-weight": "normal",
+                                       "fill": "black"})
+                                .toBack();
+                // hack needed to center text in circle
+                // https://github.com/DmitryBaranovskiy/raphael/issues/491
+                tOffset = i === 0 ? fontSize/1.4 : fontSize/2.8;
+                pathLabels[i].node.getElementsByTagName('tspan')[0].setAttribute('dy', tOffset);
+            }
+
+            // if the browser supports the Pointer API, we use that;
+            // next, if it has touchevents we listen to those;
+            // finally, we listen to mouse events if there's no pointerevent support
+            if(hasPointer)
+            {
+                // preventDefault doesn't work for pointer events
+                // to prevent default touch action with pointer events use CSS touch-action
+                if('touchAction' in paper.canvas.style)
+                    paper.canvas.style.touchAction = 'none';
+                else if ('msTouchAction' in paper.canvas.style)
+                    paper.canvas.style.msTouchAction = 'none';
+
+                if(window.PointerEvent) paper.canvas.addEventListener("pointerdown",startHandler,true);
+                else paper.canvas.addEventListener("MSPointerDown",startHandler,true);
+            }
+            else if(hasTouch) paper.canvas.addEventListener("touchstart",startHandler,true);
+            if(!hasPointer) paper.canvas.addEventListener("mousedown",startHandler,true);
+        }
+
+        // clear the paper
+        paper.clear();
+
+        // compute the trail
+        randomPath(len,2*r,paperWidth,paperHeight,4 * r,drawTrail);
+
+        // if the computation hasn't yet finished, write out a warning
+        if(computing)
+        {
+            warning = paper.text(paperWidth/2, // x
+                                 paperHeight/2, // y
+                                 "Computing trail...") // text
+                      .attr({"font-size": 30,
+                             "font-family": "Arial",
+                             "font-weight": "normal",
+                             "fill": "black"});
+        }
+    }
+
+    // iterate through the frameSequence object,
+    // implementing stimulus presentation,
+    // response collection and data management
+    function nextTrial()
+    {
+        // read the frame sequence one frame at a time
+        frame = frameSequence.shift();
+        if(frame)
+        {
+            // compute the trail path if required
+            if(frame.seed)
+            {
+                Math.seedrandom(frame.seed);
+                setup();
+            }
+
+            // check if it's the startup frame
+            if (frame.type === "begin") showAlert(frame.message,
+                                                  "Click here for instructions",
+                                                  function ()
+                                                  {
+                                                      nextTrial();
+                                                  },
+                                                  '20pt');
+
+            // else if it's a message frame, show it
+            else if (frame.type === "message") showAlert(frame.message,
+                                                         "Click here to continue",
+                                                         function ()
+                                                         {
+                                                             showFrame("null");
+                                                             nextTrial();
+                                                         },
+                                                         '20pt');
+            // deal with practice and test frames
+            else
+            {
+                elsCount = 0;
+                elsErrors = [];
+                elsPaths = [];
+                //errors = 0;
+
+                requestAnimationFrame(function()
+                {
+                    getID("feedback").innerHTML = "To start, click on '1'!";
+                    showFrame("container","svgContainer","feedback");
+                });
+            }
+        }
+        // else the sequence is empty, we are done!
+        else
+        {
+        	// all correctly hit targets
+            var tmp1 = results.filter(function( obj )
+            {
+                return obj.correct === 1;
+            });
+            
+            // compute rts as difference in time between consecutively hit targets
+            // ignoring first hit (target=1)
+            var rts = [];
+            for (i = 0; i < tmp1.length; i++)
+            {
+            	if (tmp1[i].target !== 1) rts.push(tmp1[i].time - tmp1[i-1].time);
+            }
+            
+            // compute outcome variables
+            // (final score is hits per minute)
+            outcomes.score = (60000 / score * (ncircles -1) * ntrials).round(2);
+            if(trailsType === 'a')
+            {
+                outcomes.trailsA_errors = errors;
+                outcomes.trailsA_totaltime = score;
+                outcomes.trailsA_meanRTc = rts.length ? rts.average().round(2) : null;
+				outcomes.trailsA_medianRTc = rts.length ? rts.median().round(2) : null;
+				outcomes.trailsA_sdRTc = rts.length > 1 ? rts.sd().round(2) : null;
+            }
+            else
+            {
+                outcomes.trailsB_errors = errors;
+                outcomes.trailsB_totaltime = score;
+                outcomes.trailsB_meanRTc = rts.length ? rts.average().round(2) : null;
+				outcomes.trailsB_medianRTc = rts.length ? rts.median().round(2) : null;
+				outcomes.trailsB_sdRTc = rts.length > 1 ? rts.sd().round(2) : null;
+            }
+            
+            // qc flags
+            outcomes.flag_totaltime = score / ntrials > 120000 ? 1 : 0;
+            outcomes.flag_errors = errors / ntrials > 10 ? 1 : 0;
+            outcomes.flag_any = outcomes.flag_totaltime + outcomes.flag_errors > 0 ? 1:0;
+            
+			// score returned to participants
+            score = outcomes.score;
+
+            // response device
+            var tmp = results[0].state;
+            tmp = /key/i.test(tmp) ? 'keyboard' :
+                  /touch/i.test(tmp) ? 'touch' :
+                  /mouse/i.test(tmp) ? 'mouse' :
+                  /pen/i.test(tmp) ? 'pen' :
+                  'unknown';
+            outcomes.responseDevice = tmp;
+            outcomes.testVersion = testVersion;
+
+            // if debugging, output to console
+            if(debug === "true") logResults([outcomes], 'cum');
+
+            // we either save locally or to the server
+            if(showresults === "true" || autosave === 'true' || filename)
+            {
+                // append outcomes to results
+                outcomes.type = 'summaryScores';
+                results.push(outcomes);
+
+                showAlert("Your score is " + score + " hits per minute.<br>" +
+                          "<br>The test is over.<br>" +
+                          "Thank you for participating!<br><br>",
+                          "",
+                          null,
+                          '20pt');
+
+                setTimeout(function()
+                {
+                    if(filename === false) filename = "Trails"+trailsType.toUpperCase()+"results.csv";
+                    tmbSubmitToFile(results,filename,autosave);
+                },2000);
+            }
+            else
+            {
+                showAlert("Test complete!",
+                          "",
+                          function (){},
+                          '20pt');
+            }
+        }
+    }
+
+    // generate the frameSequence object,
+    // where each object's element codes the parameters
+    // for a single trial/frame
+    function setFrameSequence()
+    {
+        var testMessage;
+
+        // messages
+        testMessage =
+        {
+            "begin": "<h2>Trail Making - Version: " + trailsType + "</h2>" +
+                     (trailsType === "a" ?
+                      "<img src='images/TrailsAcomplete.jpg'><br><br>" :
+                      "<img src='images/TrailsBcomplete.jpg'><br><br>"),
+            "practice": [((trailsType === "a" ?
+                           "<img src='images/TrailsA.jpg'><br>" +
+                           "Each <b>circle</b> has a <b>number</b>.<br>" :
+                           "<img src='images/TrailsB.jpg'><br>" +
+                           "Each <b>circle</b> has a <b>number</b> or a <b>letter</b>.<br>") +
+                          "You start by clicking on <b>'1'</b>.<br><br>"),
+                         ((trailsType === "a" ?
+                           "<img src='images/TrailsApractice.jpg'><br>":
+                           "<img src='images/TrailsBpractice.jpg'><br>") +
+                          (trailsType === "a" ?
+                           "Then draw a line to <b>2</b>, then <b>3</b>, then <b>4</b>,<br>" :
+                           "Then draw a line to <b>a</b>, then <b>2</b>, then <b>b</b>,<br>") +
+                          "and so on, as fast as possible.<br><br>"),
+                         ((trailsType === "a" ?
+                           "<img src='images/TrailsAcomplete.jpg'><br>" :
+                           "<img src='images/TrailsBcomplete.jpg'><br>") +
+                           "The test ends when all circles are connected.<br>" +
+                           "Let's do some practice.<br><br>"),
+                         ("<br>Excellent!<br>" +
+                          "You have completed the practice.<br><br>" +
+                          "Now let's do more.<br><br>")],
+            "test": ("Remember:<br>" +
+                     "only click circle <b>1</b>, and avoid<br>" +
+                     "other circles on your way to the next.<br><br>" +
+                     "Your score will be how many circles<br>" +
+                     "you connect per minute.<br>" +
+                     "So try to be <b>QUICK</b>!<br><br>")
+        };
+
+        // type of frame to display
+        var frameType = ["begin"];
+
+        // message to display
+        var frameMessage = [testMessage.begin];
+
+        // seed for drawing the trail
+        var frameSeed = [""];
+
+        // setup properties for practice trials
+        if(!dopractice || dopractice === 'true')
+        {
+            frameType = frameType.concat(["message","message","message",
+                                          "practice","message"]);
+            frameMessage = frameMessage.concat([testMessage.practice[0],
+                                                testMessage.practice[1],
+                                                testMessage.practice[2],
+                                                "",
+                                                testMessage.practice[3]]);
+            frameSeed = frameSeed.concat([seed+"practice","","","",""]);
+            
+            // setup properties for test trials
+			frameType.push("message");
+			frameMessage.push(testMessage.test);
+			frameSeed.push(seed);
+			for (var i = 0; i < ntrials; i++)
+			{
+				frameType.push("test");
+				frameMessage.push("");
+				frameSeed.push((i === 0 ? "" : seed+i));
+			}
+        }
+        else // practice trial skipped
+        {
+        	frameType = frameType.concat(["message","message","message"]);
+            frameMessage = frameMessage.concat([testMessage.practice[0],
+                                                testMessage.practice[1],
+                    testMessage.practice[2].replace("<br>Let's do some practice.", "")]);
+            frameSeed = frameSeed.concat([seed,"",""]);
+
+            // setup properties for test trials
+			frameType.push("message");
+			frameMessage.push(testMessage.test);
+			frameSeed.push("");
+			for (var i = 0; i < ntrials; i++)
+			{
+				frameType.push("test");
+				frameMessage.push("");
+				frameSeed.push((i === 0 ? "" : seed+i));
+			}
+        }
+
+        // push all components into the frames chain
+        for(i = 0; i < frameType.length; i++)
+        {
+            frameSequence.push(
+                    {
+                        type: frameType[i],
+                        message: frameMessage[i],
+                        seed: frameSeed[i]
+                    });
+        }
+    }
+
+    // on page load completion, set up initial parameters,
+    // call the frameSequence generator
+    // and start the trials sequence
+    window.onload = function()
+    {
+        var copyright = "Copyright " +
+                        document.querySelector('meta[name="copyright"]').content;
+        var scriptName = window.location.pathname.split('/').pop();
+
+        // add appropriate meta viewport for scaling
+        setBodyScale(900,800);
+
+        // see if they are just asking for help
+        if ((usage = getUrlParameters("help", "", true)))
+        {
+            showAlert("<p id='helpSpan'>" +
+                "<b>"+ document.title + "</b><br>" +
+                "<i>" + copyright + "</i><br><br>" +
+                "<b>Usage:</b>" +
+                "<br>" + scriptName + "?urlParam1=1&urlParam2=0<br><br>" +
+                "<b>URL Parameters</b>:<br>" +
+                "<i>seed=123</i> -- random number generator seed<br>" +
+                "<i>type=a</i> -- a => digits only, b => digits and letters<br>" +
+                "<i>ncircles=25</i> -- number of circles in a trail (max 25)<br>" +
+                "<i>ntrials=1</i> -- number of trails to complete<br>" +
+                "<i>dopractice=true</i> -- include instructions and practice phase ['true', 'false'] or an integer specifying last practice session]<br>" +
+                "<i>debug=true</i> -- outputs trial by trial info to the console<br>" +
+                "<i>showresults=true</i> -- allows to save results locally in a file<br>" +
+                "<i>autosave=true</i> -- will attempt to save results automatically to file<br>" +
+                "<i>filename=subject1.csv</i> -- the filename to save results to<br>" +
+                "<i>help</i> -- print this message");
+                document.getElementById('helpSpan').style.textAlign = 'left';
+                document.getElementById('helpSpan').style.margin = '50px';
+            return;
+        }
+
+        // check if this is a debug session
+        debug = getUrlParameters("debug", "", true);
+
+        // choose trails type
+        trailsType = getUrlParameters("type", "", true);
+        if(!trailsType || (trailsType !== "a" && trailsType !== "b")) trailsType = "a";
+
+		// get session number
+        session = parseInt(getUrlParameters("session", "", true));
+
+        // see if they practice trials should be included
+        dopractice = getUrlParameters("dopractice","",true);
+        
+        // if dopractice is not specified, include practice trials
+        if (!dopractice) dopractice = 'true';
+        // if practice is an integer 0+
+        else if (parseInt(dopractice) >= 0)
+        {
+        	if (parseInt(session) >= 0)
+        	{
+				dopractice = parseInt(dopractice);
+				// if do practice is 0, do not include practice trials
+				if (session > dopractice) dopractice = 'false'
+				// otherwise, include practice trials
+				else dopractice = 'true';
+			}
+			else
+			{
+				showAlert("Error: When URL parameter 'dopractice' is an integer,<br>" +
+					  "URL parameter 'session' must be an integer >= 0.<br><br>",
+					  "",
+					  null,
+					  '20pt');
+			return;
+			}
+        }
+        // throw error if invalid value for dopractice
+ 		else if (dopractice !== 'true' && dopractice !== 'false')
+		{
+			showAlert("Error: URL parameter 'dopractice' must<br>" +
+					  "be set to an integer >= 0 or 'true' or 'false'.<br><br>",
+					  "",
+					  null,
+					  '20pt');
+			return;
+		}
+        
+        // set the number of trials
+        ntrials = getUrlParameters("ntrials", "", true);
+        if (!(ntrials = parseInt(ntrials))) ntrials = 1;
+
+        // choose a random seed
+        seed = getUrlParameters("seed", "", true);
+        if (!(seed = parseInt(seed)))
+        {
+        	if (ntrials === 2)
+        	{
+        		// for compatibility with legacy test ids 940/941
+        		seed = "100";
+        	} 
+        	else 
+        	{
+        		// for compatibility with legacy test ids 540/541
+        		seed = 100;
+        	}
+        } 
+        // use default seed when seed = 1
+        if (seed === 1) seed = 100; 
+
+        // set the number of circles (max 25)
+        ncircles = getUrlParameters("ncircles", "", true);
+        if (!(ncircles = parseInt(ncircles)) || ncircles > 25) ncircles = 25;
+
+        // check if they want to load results in a new page when the test is over,
+        // if data is to be saved automatically to a file and the filename
+        showresults = getUrlParameters("showresults", "", true);
+        autosave = getUrlParameters("autosave", "", true);
+        filename = getUrlParameters("filename", "", true);
+
+        // set the test version
+        testVersion = scriptName.replace(/\.[^/.]+$/, "");
+
+        // disable spurious user interaction
+        disableSelect();
+        disableRightClick();
+        disableDrag();
+        disableDoubleTapZoom();
+
+        // setup an SVG canvas
+        paperWidth = 800;
+        paperHeight = 600;
+        paper = new Raphael(getID('svgContainer'),
+                            paperWidth,paperHeight);
+
+        setFrameSequence();
+        imagePreLoad(["images/TrailsA.jpg","images/TrailsApractice.jpg",
+                      "images/TrailsAcomplete.jpg","images/TrailsB.jpg",
+                      "images/TrailsBpractice.jpg","images/TrailsBcomplete.jpg"],
+                      {pipeline: false, callBack: function(){nextTrial();}});
+    }
+
+    </script>
+
+<!-- end of js script ****************************************************** -->
+
+</head>
+
+<!-- HTML content ********************************************************** -->
+
+<body>
+
+    <div id="container">
+        <div id="feedback"></div>
+
+        <!-- stimulus DIV -->
+        <div id="svgContainer"></div>
+    </div>
+
+    <!-- if Javascript is disabled, we instruct the user to enable it -->
+    <noscript>
+        For full functionality of this site it is necessary to enable JavaScript.<br>
+        Here are the <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener noreferrer">
+        instructions</a> how to enable JavaScript in your web browser.
+    </noscript>
+
+</body>
+
+</html>
