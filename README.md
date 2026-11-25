@@ -70,6 +70,7 @@ The Many Brains Project is a partner in the Open Measures Network Initiative for
 
 If you are in need of technical infrastructure for administering these tests, please contact info@manybrains.net.
 
+Due to limited capacity, we are unable to provide technical or scientific support for independent implementations of TMB tests or respond to inquiries requesting information that is already publicly available.
 
 ## License
 
